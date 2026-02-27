@@ -28,9 +28,9 @@ export default function App() {
       try { new Audio('/notification.mp3').play(); } catch (_) {}
     });
 
-    // 주문 상태 업데이트
-    socket.on('order:updated', (updated: KDSOrder) => {
-      setOrders(prev => prev.map(o => o.id === updated.id ? updated : o));
+    // 주문 상태 업데이트 - 부분 데이터를 머지 (기존 lineItems 등 보존)
+    socket.on('order:updated', (updated: Partial<KDSOrder> & { id: string }) => {
+      setOrders(prev => prev.map(o => o.id === updated.id ? { ...o, ...updated } : o));
     });
 
     return () => {

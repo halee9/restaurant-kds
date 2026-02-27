@@ -13,6 +13,15 @@ export function getElapsedMinutes(isoString: string): number {
   return Math.floor((Date.now() - new Date(isoString).getTime()) / 60000);
 }
 
+export function formatElapsed(isoString: string): string {
+  const mins = getElapsedMinutes(isoString);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
+
 export function detectSource(squareSourceName?: string): OrderSource {
   if (!squareSourceName) return 'Unknown';
   const name = squareSourceName.toLowerCase();
