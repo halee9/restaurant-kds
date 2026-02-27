@@ -4,42 +4,75 @@ import type { KDSOrder } from './types';
 import OrderCard from './components/OrderCard';
 import StatusBar from './components/StatusBar';
 import PrintTicket from './components/PrintTicket';
+import RestaurantLogin from './components/RestaurantLogin';
 
 type FilterType = 'ALL' | 'OPEN' | 'IN_PROGRESS' | 'COMPLETED';
 
 export default function App() {
+  const [restaurantCode, setRestaurantCode] = useState<string | null>(
+    () => localStorage.getItem('kds_restaurant_code')
+  );
+  const [restaurantName, setRestaurantName] = useState<string>(
+    () => localStorage.getItem('kds_restaurant_name') ?? ''
+  );
   const [connected, setConnected] = useState(false);
   const [orders, setOrders] = useState<KDSOrder[]>([]);
   const [filter, setFilter] = useState<FilterType>('ALL');
   const [printOrder, setPrintOrder] = useState<KDSOrder | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
 
+  // restaurant_code로 Socket.io room join
   useEffect(() => {
-    socket.on('connect', () => setConnected(true));
-    socket.on('disconnect', () => setConnected(false));
+    if (!restaurantCode) return;
 
-    // 새 주문 수신
+    socket.on('connect', () => {
+      setConnected(true);
+      socket.emit('join', restaurantCode);
+    });
+    socket.on('disconnect', () => setConnected(false));
+    socket.on('joined', ({ room }: { room: string }) => {
+      console.log('[KDS] Joined room:', room);
+    });
+
     socket.on('order:new', (order: KDSOrder) => {
       setOrders(prev => {
-        const exists = prev.find(o => o.id === order.id);
-        if (exists) return prev;
+        if (prev.find(o => o.id === order.id)) return prev;
         return [order, ...prev];
       });
       try { new Audio('/notification.mp3').play(); } catch (_) {}
     });
 
-    // 주문 상태 업데이트 - 부분 데이터를 머지 (기존 lineItems 등 보존)
     socket.on('order:updated', (updated: Partial<KDSOrder> & { id: string }) => {
       setOrders(prev => prev.map(o => o.id === updated.id ? { ...o, ...updated } : o));
     });
 
+    // 이미 연결돼 있으면 바로 join
+    if (socket.connected) {
+      setConnected(true);
+      socket.emit('join', restaurantCode);
+    }
+
     return () => {
       socket.off('connect');
       socket.off('disconnect');
+      socket.off('joined');
       socket.off('order:new');
       socket.off('order:updated');
     };
-  }, []);
+  }, [restaurantCode]);
+
+  const handleJoin = (code: string, name: string) => {
+    setRestaurantCode(code);
+    setRestaurantName(name);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('kds_restaurant_code');
+    localStorage.removeItem('kds_restaurant_name');
+    setRestaurantCode(null);
+    setRestaurantName('');
+    setOrders([]);
+  };
 
   const handleUpdateStatus = async (orderId: string, status: KDSOrder['status']) => {
     const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
@@ -59,16 +92,17 @@ export default function App() {
 
   const handlePrint = (order: KDSOrder) => {
     setPrintOrder(order);
-    setTimeout(() => {
-      window.print();
-      setPrintOrder(null);
-    }, 100);
+    setTimeout(() => { window.print(); setPrintOrder(null); }, 100);
   };
 
-  const filteredOrders = orders.filter(o => {
-    if (filter === 'ALL') return true;
-    return o.status === filter;
-  });
+  // 로그인 화면
+  if (!restaurantCode) {
+    return <RestaurantLogin onJoin={handleJoin} />;
+  }
+
+  const filteredOrders = orders.filter(o =>
+    filter === 'ALL' ? true : o.status === filter
+  );
 
   const orderCounts = {
     open: orders.filter(o => o.status === 'OPEN').length,
@@ -78,16 +112,17 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-900">
-      {/* 프린트 티켓 (화면에는 숨김, 프린트 시에만 표시) */}
       <div ref={printRef}>
         {printOrder && <PrintTicket order={printOrder} />}
       </div>
 
       <StatusBar
         connected={connected}
+        restaurantName={restaurantName}
         orderCounts={orderCounts}
         filter={filter}
         onFilterChange={setFilter}
+        onLogout={handleLogout}
       />
 
       <div className="no-print px-6 py-4 flex items-center justify-between">
