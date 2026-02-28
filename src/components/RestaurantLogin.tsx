@@ -1,4 +1,8 @@
 import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface Props {
   onJoin: (code: string, name: string) => void;
@@ -37,38 +41,38 @@ export default function RestaurantLogin({ onJoin }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-      <div className="bg-gray-900 rounded-2xl p-8 w-full max-w-sm border border-gray-800 shadow-xl">
-        <div className="text-center mb-8">
-          <div className="text-4xl mb-3">🍽️</div>
-          <h1 className="text-xl font-bold text-white">Kitchen Display</h1>
-          <p className="text-gray-400 text-sm mt-1">Enter your restaurant code to start</p>
-        </div>
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <Card className="w-full max-w-sm">
+        <CardHeader className="text-center">
+          <div className="text-4xl mb-2">🍽️</div>
+          <CardTitle>Kitchen Display</CardTitle>
+          <CardDescription>Enter your restaurant code to start</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="code">Restaurant Code</Label>
+              <Input
+                id="code"
+                value={code}
+                onChange={e => setCode(e.target.value.toUpperCase())}
+                placeholder="e.g. MIDORI"
+                maxLength={8}
+                autoFocus
+                className="text-center text-2xl font-bold tracking-widest h-14"
+              />
+            </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <input
-            type="text"
-            value={code}
-            onChange={e => setCode(e.target.value.toUpperCase())}
-            placeholder="e.g. OWNER01"
-            maxLength={8}
-            autoFocus
-            className="w-full px-4 py-3 rounded-xl bg-gray-800 border border-gray-700 text-white text-center text-2xl font-bold tracking-widest placeholder:text-gray-600 placeholder:text-base placeholder:font-normal focus:outline-none focus:border-blue-500 transition-colors"
-          />
+            {error && (
+              <p className="text-destructive text-sm text-center">{error}</p>
+            )}
 
-          {error && (
-            <p className="text-red-400 text-sm text-center">{error}</p>
-          )}
-
-          <button
-            type="submit"
-            disabled={!code.trim() || loading}
-            className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-bold transition-colors"
-          >
-            {loading ? 'Connecting...' : 'Connect'}
-          </button>
-        </form>
-      </div>
+            <Button type="submit" disabled={!code.trim() || loading} className="w-full">
+              {loading ? 'Connecting...' : 'Connect'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

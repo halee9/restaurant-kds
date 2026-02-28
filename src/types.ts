@@ -12,9 +12,13 @@ export interface OrderLineItem {
 
 export interface KDSOrder {
   id: string;
-  displayId: string; // last 4 chars of id
+  displayId: string;
   source: OrderSource;
   status: OrderStatus;
+  isDelivery: boolean;
+  isScheduled: boolean;
+  displayName: string;
+  pickupAt: string;
   lineItems: OrderLineItem[];
   totalMoney: number; // cents
   note?: string;

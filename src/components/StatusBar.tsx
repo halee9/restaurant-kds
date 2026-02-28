@@ -1,3 +1,7 @@
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+
 interface Props {
   connected: boolean;
   restaurantName: string;
@@ -8,68 +12,63 @@ interface Props {
 }
 
 const FILTERS = [
-  { key: 'ALL', label: 'All' },
-  { key: 'OPEN', label: 'New' },
-  { key: 'IN_PROGRESS', label: 'In Progress' },
-  { key: 'COMPLETED', label: 'Done' },
-] as const;
+  { key: 'ALL' as const,         label: 'All' },
+  { key: 'OPEN' as const,        label: 'New' },
+  { key: 'IN_PROGRESS' as const, label: 'In Progress' },
+  { key: 'COMPLETED' as const,   label: 'Done' },
+];
 
 export default function StatusBar({ connected, restaurantName, orderCounts, filter, onFilterChange, onLogout }: Props) {
-  const getCount = (f: typeof FILTERS[number]['key']) => {
-    if (f === 'ALL') return orderCounts.open + orderCounts.inProgress + orderCounts.completed;
-    if (f === 'OPEN') return orderCounts.open;
-    if (f === 'IN_PROGRESS') return orderCounts.inProgress;
+  const getCount = (key: typeof FILTERS[number]['key']) => {
+    if (key === 'ALL') return orderCounts.open + orderCounts.inProgress + orderCounts.completed;
+    if (key === 'OPEN') return orderCounts.open;
+    if (key === 'IN_PROGRESS') return orderCounts.inProgress;
     return orderCounts.completed;
   };
 
   return (
-    <div className="no-print flex items-center justify-between px-5 py-2.5 bg-gray-950 border-b border-gray-800">
-      {/* 연결 상태 + 레스토랑 이름 */}
-      <div className="flex items-center gap-2 w-40">
-        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${connected ? 'bg-green-400' : 'bg-red-500 animate-pulse'}`} />
+    <div className="no-print flex items-center justify-between px-4 py-2 bg-card border-b border-border">
+      {/* 연결 상태 */}
+      <div className="flex items-center gap-2 min-w-32">
+        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${connected ? 'bg-green-500' : 'bg-red-500 animate-pulse'}`} />
         <span className={`text-xs font-medium truncate ${connected ? 'text-green-400' : 'text-red-400'}`}>
           {connected ? (restaurantName || 'Live') : 'Offline'}
         </span>
       </div>
 
-      {/* 필터 */}
-      <div className="flex gap-1">
+      {/* 필터 버튼 */}
+      <div className="flex items-center gap-1">
         {FILTERS.map(({ key, label }) => {
           const count = getCount(key);
           const isActive = filter === key;
           return (
-            <button
+            <Button
               key={key}
+              variant={isActive ? 'secondary' : 'ghost'}
+              size="sm"
               onClick={() => onFilterChange(key)}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition-colors
-                ${isActive ? 'bg-white text-gray-900' : 'text-gray-400 hover:text-white hover:bg-gray-800'}
-              `}
+              className="h-7 px-3 text-xs gap-1.5"
             >
               {label}
               {count > 0 && (
-                <span className={`text-xs rounded-full px-1.5 py-0.5 leading-none font-bold
-                  ${isActive ? 'bg-gray-900 text-white' : 'bg-gray-700 text-gray-300'}
-                `}>
+                <Badge variant={isActive ? 'default' : 'secondary'} className="h-4 px-1.5 text-xs">
                   {count}
-                </span>
+                </Badge>
               )}
-            </button>
+            </Button>
           );
         })}
       </div>
 
-      {/* 날짜 + 레스토랑 변경 */}
-      <div className="flex items-center gap-3 w-40 justify-end">
-        <span className="text-xs text-gray-500">
+      {/* 날짜 + 로그아웃 */}
+      <div className="flex items-center gap-3 min-w-32 justify-end">
+        <span className="text-xs text-muted-foreground hidden sm:block">
           {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
         </span>
-        <button
-          onClick={onLogout}
-          className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
-          title="Change restaurant"
-        >
+        <Separator orientation="vertical" className="h-4" />
+        <Button variant="ghost" size="sm" onClick={onLogout} className="h-7 px-2 text-xs text-muted-foreground">
           ✕
-        </button>
+        </Button>
       </div>
     </div>
   );
