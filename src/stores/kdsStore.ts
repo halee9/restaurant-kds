@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { KDSOrder, OrderStatus } from '../types';
 
-type FilterType = 'ALL' | 'OPEN' | 'IN_PROGRESS' | 'COMPLETED';
+type FilterType = 'ALL' | 'OPEN' | 'IN_PROGRESS' | 'READY' | 'COMPLETED';
 
 interface KDSState {
   // 상태
@@ -23,7 +23,7 @@ interface KDSState {
 
   // 파생 상태
   filteredOrders: () => KDSOrder[];
-  orderCounts: () => { open: number; inProgress: number; completed: number };
+  orderCounts: () => { open: number; inProgress: number; ready: number; completed: number };
 }
 
 export const useKDSStore = create<KDSState>()((set, get) => ({
@@ -66,6 +66,7 @@ export const useKDSStore = create<KDSState>()((set, get) => ({
     return {
       open: orders.filter((o) => o.status === 'OPEN').length,
       inProgress: orders.filter((o) => o.status === 'IN_PROGRESS').length,
+      ready: orders.filter((o) => o.status === 'READY').length,
       completed: orders.filter((o) => o.status === 'COMPLETED').length,
     };
   },

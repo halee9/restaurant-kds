@@ -35,12 +35,14 @@ export default function OrderCard({ order, onUpdateStatus, onPrint }: Props) {
     <Card className={`flex flex-col gap-0 overflow-hidden transition-all border-2
       ${order.status === 'COMPLETED' ? 'opacity-50 border-border' : ''}
       ${order.status === 'IN_PROGRESS' ? 'border-yellow-400' : ''}
+      ${order.status === 'READY' ? 'border-green-400' : ''}
       ${order.status === 'OPEN' && !isUrgent ? 'border-border' : ''}
       ${isUrgent ? 'border-red-500 shadow-lg shadow-red-900/40' : ''}
     `}>
       {/* Header */}
       <CardHeader className={`flex flex-row items-center justify-between px-4 py-3 space-y-0
         ${order.status === 'IN_PROGRESS' ? 'bg-yellow-500/10' : ''}
+        ${order.status === 'READY' ? 'bg-green-500/10' : ''}
         ${isUrgent ? 'bg-red-500/10' : ''}
       `}>
         <div className="flex items-center gap-2 flex-wrap">
@@ -119,9 +121,18 @@ export default function OrderCard({ order, onUpdateStatus, onPrint }: Props) {
           <Button
             size="sm"
             className="bg-green-600 hover:bg-green-500 font-bold"
+            onClick={() => onUpdateStatus(order.id, 'READY')}
+          >
+            Ready ✓
+          </Button>
+        )}
+        {order.status === 'READY' && (
+          <Button
+            size="sm"
+            className="bg-blue-600 hover:bg-blue-500 font-bold"
             onClick={() => onUpdateStatus(order.id, 'COMPLETED')}
           >
-            Done ✓
+            Complete ✓
           </Button>
         )}
         {order.status === 'COMPLETED' && (

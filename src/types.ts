@@ -1,6 +1,6 @@
 export type OrderSource = 'Kiosk' | 'DoorDash' | 'Uber Eats' | 'Grubhub' | 'Square Online' | 'Unknown';
 
-export type OrderStatus = 'OPEN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED';
+export type OrderStatus = 'OPEN' | 'IN_PROGRESS' | 'READY' | 'COMPLETED' | 'CANCELED';
 
 export interface OrderLineItem {
   name: string;

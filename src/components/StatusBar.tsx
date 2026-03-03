@@ -5,9 +5,9 @@ import { Separator } from '@/components/ui/separator';
 interface Props {
   connected: boolean;
   restaurantName: string;
-  orderCounts: { open: number; inProgress: number; completed: number };
-  filter: 'ALL' | 'OPEN' | 'IN_PROGRESS' | 'COMPLETED';
-  onFilterChange: (f: 'ALL' | 'OPEN' | 'IN_PROGRESS' | 'COMPLETED') => void;
+  orderCounts: { open: number; inProgress: number; ready: number; completed: number };
+  filter: 'ALL' | 'OPEN' | 'IN_PROGRESS' | 'READY' | 'COMPLETED';
+  onFilterChange: (f: 'ALL' | 'OPEN' | 'IN_PROGRESS' | 'READY' | 'COMPLETED') => void;
   onLogout: () => void;
 }
 
@@ -15,14 +15,16 @@ const FILTERS = [
   { key: 'ALL' as const,         label: 'All' },
   { key: 'OPEN' as const,        label: 'New' },
   { key: 'IN_PROGRESS' as const, label: 'In Progress' },
+  { key: 'READY' as const,       label: 'Ready' },
   { key: 'COMPLETED' as const,   label: 'Done' },
 ];
 
 export default function StatusBar({ connected, restaurantName, orderCounts, filter, onFilterChange, onLogout }: Props) {
   const getCount = (key: typeof FILTERS[number]['key']) => {
-    if (key === 'ALL') return orderCounts.open + orderCounts.inProgress + orderCounts.completed;
+    if (key === 'ALL') return orderCounts.open + orderCounts.inProgress + orderCounts.ready + orderCounts.completed;
     if (key === 'OPEN') return orderCounts.open;
     if (key === 'IN_PROGRESS') return orderCounts.inProgress;
+    if (key === 'READY') return orderCounts.ready;
     return orderCounts.completed;
   };
 
