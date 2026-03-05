@@ -90,24 +90,36 @@ export default function MenuDisplayEditor({ restaurantCode, pin }: Props) {
     setSaving(true);
     setSuccessMsg('');
     setErrorMsg('');
+    let res: Response | null = null;
     try {
       const menuItems = Object.values(menuConfig).filter((m) => m.abbreviation || m.bg_color || m.text_color);
       const modifiers = Object.values(modifierConfig).filter((m) => m.abbreviation);
 
-      const res = await fetch(`${SERVER_URL}/api/menu-display/${restaurantCode.toLowerCase()}`, {
+      res = await fetch(`${SERVER_URL}/api/menu-display/${restaurantCode.toLowerCase()}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pin, menuItems, modifiers }),
       });
+    } catch {
+      setErrorMsg('Cannot connect to server. Check network or server status.');
+      setSaving(false);
+      return;
+    }
 
+    try {
       if (!res.ok) {
-        const d = await res.json();
-        setErrorMsg(d.error || 'Failed to save');
+        let errMsg = `Server error (${res.status})`;
+        try {
+          const d = await res.json();
+          errMsg = d.error || errMsg;
+        } catch {
+          // response was not JSON (e.g., HTML error page)
+          errMsg = `Server returned ${res.status} (non-JSON response)`;
+        }
+        setErrorMsg(errMsg);
         return;
       }
       setSuccessMsg('Menu display settings saved!');
-    } catch {
-      setErrorMsg('Cannot connect to server.');
     } finally {
       setSaving(false);
     }
