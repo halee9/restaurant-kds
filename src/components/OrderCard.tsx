@@ -1,8 +1,9 @@
+import { Truck, Calendar, Clock, AlertTriangle, FileText, Printer, Check, CheckCheck } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { KDSOrder } from '../types';
-import { formatMoney, formatTime, formatElapsed, getElapsedMinutes, getItemDisplay, getModifierDisplay } from '../utils';
+import { formatMoney, formatElapsed, formatTime, getElapsedMinutes, getItemDisplay, getModifierDisplay } from '../utils';
 import { useKDSStore } from '../stores/kdsStore';
 
 interface Props {
@@ -42,45 +43,43 @@ export default function OrderCard({ order, onUpdateStatus, onPrint }: Props) {
       ${order.status === 'OPEN' && !isUrgent ? 'border-border' : ''}
       ${isUrgent ? 'border-red-500 shadow-lg shadow-red-900/40' : ''}
     `}>
-      {/* Header */}
-      <CardHeader className={`flex flex-row items-center justify-between px-4 py-3 space-y-0
+      {/* Header — source + #ID + 고객이름 + elapsed */}
+      <CardHeader className={`flex flex-row items-center justify-between px-4 py-2.5 space-y-0
         ${order.status === 'IN_PROGRESS' ? 'bg-yellow-500/10' : ''}
         ${order.status === 'READY' ? 'bg-green-500/10' : ''}
         ${isUrgent ? 'bg-red-500/10' : ''}
       `}>
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xl font-black tracking-tight">#{order.displayId}</span>
-          <Badge className={SOURCE_VARIANT[order.source] ?? SOURCE_VARIANT['Unknown']}>
+        <div className="flex items-center gap-2 flex-wrap min-w-0">
+          <Badge className={`shrink-0 ${SOURCE_VARIANT[order.source] ?? SOURCE_VARIANT['Unknown']}`}>
             {order.source}
           </Badge>
+          <span className="text-2xl font-black tracking-tight shrink-0">#{order.displayId}</span>
+          {order.displayName && (
+            <span className="text-sm font-semibold text-muted-foreground truncate">{order.displayName}</span>
+          )}
           {order.isDelivery && (
-            <Badge variant="outline" className="text-xs border-blue-500 text-blue-400">🚗 Delivery</Badge>
+            <Badge variant="outline" className="shrink-0 text-xs border-blue-500 text-blue-400 flex items-center gap-1">
+              <Truck className="h-3 w-3" /> Delivery
+            </Badge>
           )}
           {order.isScheduled && (
-            <Badge variant="outline" className="text-xs border-purple-500 text-purple-400">📅 Scheduled</Badge>
+            <Badge variant="outline" className="shrink-0 text-xs border-purple-500 text-purple-400 flex items-center gap-1">
+              <Calendar className="h-3 w-3" /> Scheduled
+            </Badge>
           )}
         </div>
-        <div className="text-right leading-tight shrink-0">
-          <div className="text-xs text-muted-foreground">{formatTime(order.createdAt)}</div>
-          <div className={`text-xs font-bold ${isUrgent ? 'text-red-400' : 'text-muted-foreground'}`}>
+        <div className="text-right shrink-0 leading-tight">
+          <div className={`text-base font-black ${isUrgent ? 'text-red-400' : 'text-muted-foreground'}`}>
             {formatElapsed(order.createdAt)}
           </div>
+          {pickupTime && (
+            <div className="text-xs text-muted-foreground flex items-center justify-end gap-1 mt-0.5">
+              {order.isScheduled ? <Calendar className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+              {pickupTime}
+            </div>
+          )}
         </div>
       </CardHeader>
-
-      {/* Customer name + pickup time */}
-      {(order.displayName || pickupTime) && (
-        <div className="px-4 py-2 bg-muted/30 border-t border-border flex items-center justify-between">
-          {order.displayName && (
-            <span className="text-sm font-semibold text-foreground">{order.displayName}</span>
-          )}
-          {pickupTime && (
-            <span className="text-xs text-muted-foreground ml-auto">
-              {order.isScheduled ? '📅' : '⏱'} {pickupTime}
-            </span>
-          )}
-        </div>
-      )}
 
       {/* Line items */}
       <CardContent className="flex flex-col gap-2 px-4 py-3 border-t border-border">
@@ -90,27 +89,31 @@ export default function OrderCard({ order, onUpdateStatus, onPrint }: Props) {
           return (
             <div key={idx}>
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="font-bold text-sm min-w-[1.5rem]">{item.quantity}×</span>
+                <span className="font-black text-lg min-w-[2rem]">{item.quantity}×</span>
                 <span
-                  className="px-2 py-0.5 rounded font-bold text-sm"
+                  className="px-2.5 py-1 rounded-md font-bold text-lg leading-tight"
                   style={{ backgroundColor: display.bgColor, color: display.textColor }}
                 >
                   {display.label}
-                  {display.serverAlert && <span className="ml-1 text-red-500 text-xs">⚠</span>}
+                  {display.serverAlert && (
+                    <AlertTriangle className="inline ml-1.5 h-3.5 w-3.5 text-red-500" />
+                  )}
                 </span>
                 {item.variationName && (
-                  <span className="text-muted-foreground text-xs">({item.variationName})</span>
+                  <span className="text-muted-foreground text-sm">({item.variationName})</span>
                 )}
               </div>
               {item.modifiers && item.modifiers.length > 0 && (
-                <div className="ml-6 mt-0.5 flex flex-wrap gap-1">
+                <div className="ml-7 mt-1 flex flex-wrap gap-1">
                   {item.modifiers.map((mod, mIdx) => {
                     const modDisplay = getModifierDisplay(mod, modifierDisplay);
                     if (!modDisplay.showOnKds) return null;
                     return (
-                      <span key={mIdx} className="text-xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
+                      <span key={mIdx} className="text-base bg-muted px-2 py-0.5 rounded text-muted-foreground flex items-center gap-1">
                         {modDisplay.label}
-                        {modDisplay.serverAlert && <span className="ml-0.5 text-red-400">⚠</span>}
+                        {modDisplay.serverAlert && (
+                          <AlertTriangle className="h-3 w-3 text-red-400" />
+                        )}
                       </span>
                     );
                   })}
@@ -120,20 +123,33 @@ export default function OrderCard({ order, onUpdateStatus, onPrint }: Props) {
           );
         })}
         {order.note && (
-          <div className="mt-1 text-xs text-yellow-200 bg-yellow-900/30 border border-yellow-800/40 rounded px-2 py-1">
-            📝 {order.note}
+          <div className="mt-1 text-sm text-yellow-200 bg-yellow-900/30 border border-yellow-800/40 rounded px-2 py-1 flex items-start gap-1.5">
+            <FileText className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+            {order.note}
           </div>
         )}
       </CardContent>
 
-      {/* Footer */}
-      <CardFooter className="flex items-center gap-2 px-4 py-3 border-t border-border bg-muted/20">
-        <span className="font-bold text-sm flex-1">{formatMoney(order.totalMoney)}</span>
+      {/* Footer — 금액 + 프린트 / 전체 너비 액션 버튼 */}
+      <CardFooter className="flex flex-col gap-0 p-0 border-t border-border">
+        {/* 1행: 금액 + 프린트 */}
+        <div className="flex items-center px-4 py-2 bg-muted/20">
+          <span className="font-bold text-base flex-1">{formatMoney(order.totalMoney)}</span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 no-print text-muted-foreground hover:text-foreground"
+            onClick={() => onPrint(order)}
+            title="Print ticket"
+          >
+            <Printer className="h-4 w-4" />
+          </Button>
+        </div>
 
+        {/* 2행: 전체 너비 액션 버튼 */}
         {order.status === 'OPEN' && (
           <Button
-            size="sm"
-            className="bg-yellow-500 hover:bg-yellow-400 text-black font-bold"
+            className="w-full h-11 rounded-none font-bold text-base bg-yellow-500 hover:bg-yellow-400 text-black border-0"
             onClick={() => onUpdateStatus(order.id, 'IN_PROGRESS')}
           >
             Start
@@ -141,35 +157,25 @@ export default function OrderCard({ order, onUpdateStatus, onPrint }: Props) {
         )}
         {order.status === 'IN_PROGRESS' && (
           <Button
-            size="sm"
-            className="bg-green-600 hover:bg-green-500 font-bold"
+            className="w-full h-11 rounded-none font-bold text-base bg-green-600 hover:bg-green-500 border-0"
             onClick={() => onUpdateStatus(order.id, 'READY')}
           >
-            Ready ✓
+            <Check className="mr-2 h-4 w-4" /> Ready
           </Button>
         )}
         {order.status === 'READY' && (
           <Button
-            size="sm"
-            className="bg-blue-600 hover:bg-blue-500 font-bold"
+            className="w-full h-11 rounded-none font-bold text-base bg-blue-600 hover:bg-blue-500 border-0"
             onClick={() => onUpdateStatus(order.id, 'COMPLETED')}
           >
-            Complete ✓
+            <CheckCheck className="mr-2 h-4 w-4" /> Complete
           </Button>
         )}
         {order.status === 'COMPLETED' && (
-          <span className="text-green-400 font-bold text-sm">✓ Done</span>
+          <div className="flex items-center justify-center gap-1.5 py-2.5 text-green-400 font-bold text-sm">
+            <Check className="h-4 w-4" /> Done
+          </div>
         )}
-
-        <Button
-          size="sm"
-          variant="outline"
-          className="no-print px-2"
-          onClick={() => onPrint(order)}
-          title="Print ticket"
-        >
-          🖨️
-        </Button>
       </CardFooter>
     </Card>
   );

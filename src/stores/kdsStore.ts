@@ -3,6 +3,9 @@ import type { KDSOrder, OrderStatus, MenuDisplayConfig } from '../types';
 
 type FilterType = 'ALL' | 'OPEN' | 'IN_PROGRESS' | 'READY' | 'COMPLETED';
 
+const ACTIVATION_KEY = 'kds_activation_minutes';
+const DEFAULT_ACTIVATION = 20;
+
 interface KDSState {
   // 상태
   orders: KDSOrder[];
@@ -10,6 +13,9 @@ interface KDSState {
   connected: boolean;
   printOrder: KDSOrder | null;
   menuDisplayConfig: MenuDisplayConfig;
+
+  // KDS 설정 (localStorage 영속화)
+  scheduledActivationMinutes: number;
 
   // 주문 액션
   setOrders: (orders: KDSOrder[]) => void;
@@ -22,6 +28,7 @@ interface KDSState {
   setConnected: (connected: boolean) => void;
   setPrintOrder: (order: KDSOrder | null) => void;
   setMenuDisplayConfig: (config: MenuDisplayConfig) => void;
+  setScheduledActivationMinutes: (minutes: number) => void;
 
   // 파생 상태
   filteredOrders: () => KDSOrder[];
@@ -34,6 +41,7 @@ export const useKDSStore = create<KDSState>()((set, get) => ({
   connected: false,
   printOrder: null,
   menuDisplayConfig: { menuItems: [], modifiers: [] },
+  scheduledActivationMinutes: parseInt(localStorage.getItem(ACTIVATION_KEY) ?? String(DEFAULT_ACTIVATION)),
 
   setOrders: (orders) => set({ orders }),
 
@@ -59,6 +67,11 @@ export const useKDSStore = create<KDSState>()((set, get) => ({
   setConnected: (connected) => set({ connected }),
   setPrintOrder: (printOrder) => set({ printOrder }),
   setMenuDisplayConfig: (menuDisplayConfig) => set({ menuDisplayConfig }),
+
+  setScheduledActivationMinutes: (minutes) => {
+    localStorage.setItem(ACTIVATION_KEY, String(minutes));
+    set({ scheduledActivationMinutes: minutes });
+  },
 
   filteredOrders: () => {
     const { orders, filter } = get();

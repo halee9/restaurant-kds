@@ -1,3 +1,4 @@
+import { Printer, AlertTriangle, FileText, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { KDSOrder } from '../types';
@@ -78,11 +79,16 @@ export default function OrderList({ orders, onUpdateStatus, onPrint }: Props) {
                       style={{ backgroundColor: display.bgColor, color: display.textColor }}
                     >
                       {display.label}
-                      {display.serverAlert && <span className="ml-0.5 text-red-500">⚠</span>}
+                      {display.serverAlert && <AlertTriangle className="inline ml-0.5 h-3 w-3 text-red-500" />}
                     </span>
                     {modChips.length > 0 && (
                       <span className="text-xs text-muted-foreground">
-                        [{modChips.map((d) => d.serverAlert ? `⚠${d.label}` : d.label).join(' ')}]
+                        [{modChips.map((d, i) => (
+                        <span key={i} className="inline-flex items-center gap-0.5">
+                          {d.serverAlert && <AlertTriangle className="h-2.5 w-2.5 text-red-400" />}
+                          {d.label}
+                        </span>
+                      ))}]
                       </span>
                     )}
                   </span>
@@ -90,7 +96,7 @@ export default function OrderList({ orders, onUpdateStatus, onPrint }: Props) {
               })}
               {order.note && (
                 <Badge variant="outline" className="text-xs border-yellow-600 text-yellow-400 ml-1">
-                  📝
+                  <FileText className="h-3 w-3" />
                 </Badge>
               )}
             </div>
@@ -135,16 +141,18 @@ export default function OrderList({ orders, onUpdateStatus, onPrint }: Props) {
                 </Button>
               )}
               {order.status === 'COMPLETED' && (
-                <span className="text-green-400 font-bold text-xs w-12 text-center">✓</span>
+                <span className="text-green-400 font-bold text-xs w-12 flex items-center justify-center">
+                  <Check className="h-3.5 w-3.5" />
+                </span>
               )}
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-7 px-1.5 text-xs no-print"
+                className="h-7 px-1.5 no-print text-muted-foreground"
                 onClick={() => onPrint(order)}
                 title="Print"
               >
-                🖨️
+                <Printer className="h-3.5 w-3.5" />
               </Button>
             </div>
           </div>

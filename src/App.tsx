@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { socket } from './socket';
 import type { KDSOrder } from './types';
@@ -7,6 +7,7 @@ import { useSessionStore } from './stores/sessionStore';
 import OrderCard from './components/OrderCard';
 import OrderList from './components/OrderList';
 import StatusBar from './components/StatusBar';
+import PendingStrip from './components/PendingStrip';
 import PrintTicket from './components/PrintTicket';
 import RestaurantLogin from './components/RestaurantLogin';
 import AdminPage from './components/AdminPage';
@@ -20,10 +21,19 @@ function KDSApp() {
     setOrders, addOrder, updateOrderStatus, cancelOrder,
     setConnected, setPrintOrder,
     setMenuDisplayConfig,
-    filteredOrders, orderCounts,
-    filter, setFilter,
     connected,
+    orders,
+    scheduledActivationMinutes,
   } = useKDSStore();
+
+  const [activeTab, setActiveTab] = useState<'kitchen' | 'done'>('kitchen');
+  const [now, setNow] = useState(() => Date.now());
+
+  // 30초마다 now 갱신 → 예약 주문 자동 활성화 체크
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   // 재연결 시 활성 주문 복구
   const fetchActiveOrders = async (code: string) => {
@@ -122,8 +132,31 @@ function KDSApp() {
     return <RestaurantLogin onJoin={login} />;
   }
 
-  const filtered = filteredOrders();
-  const counts = orderCounts();
+  // ── 주문 분류 ──────────────────────────────────────────────────
+  const minutesUntil = (pickupAt: string) =>
+    (new Date(pickupAt).getTime() - now) / 60_000;
+
+  // 지금 당장 조리해야 할 주문
+  const activeOrders = orders.filter((o) =>
+    o.status === 'IN_PROGRESS' ||
+    (o.status === 'OPEN' && (
+      !o.isScheduled || minutesUntil(o.pickupAt) <= scheduledActivationMinutes
+    ))
+  );
+
+  // 픽업 시간이 threshold보다 먼 예약 주문 (대기)
+  const pendingOrders = orders.filter((o) =>
+    o.status === 'OPEN' &&
+    o.isScheduled &&
+    minutesUntil(o.pickupAt) > scheduledActivationMinutes
+  );
+
+  // 완료된 주문 (별도 탭)
+  const doneOrders = orders.filter((o) =>
+    o.status === 'READY' || o.status === 'COMPLETED'
+  );
+
+  const displayOrders = activeTab === 'kitchen' ? activeOrders : doneOrders;
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -132,34 +165,38 @@ function KDSApp() {
       <StatusBar
         connected={connected}
         restaurantName={restaurantName}
-        orderCounts={counts}
-        filter={filter}
-        onFilterChange={setFilter}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        kitchenCount={activeOrders.length}
+        pendingCount={pendingOrders.length}
+        doneCount={doneOrders.length}
         onLogout={handleLogout}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
       />
 
-      <div className="no-print px-6 py-4 flex items-center justify-between">
-        <h1 className="text-xl font-bold">Kitchen Display</h1>
-        <span className="text-sm text-muted-foreground">{filtered.length} orders</span>
-      </div>
+      {/* 예약 대기 스트립 (Kitchen 탭, 대기 주문 있을 때만) */}
+      {activeTab === 'kitchen' && pendingOrders.length > 0 && (
+        <PendingStrip orders={pendingOrders} now={now} />
+      )}
 
-      <div className="flex-1 px-6 pb-6">
-        {filtered.length === 0 ? (
+      <div className="flex-1 px-4 pb-4">
+        {displayOrders.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
             <div className="text-5xl mb-4">🍽️</div>
-            <div className="text-lg">No orders yet</div>
+            <div className="text-lg">
+              {activeTab === 'kitchen' ? 'No active orders' : 'No completed orders'}
+            </div>
           </div>
         ) : viewMode === 'list' ? (
           <OrderList
-            orders={filtered}
+            orders={displayOrders}
             onUpdateStatus={handleUpdateStatus}
             onPrint={handlePrint}
           />
         ) : (
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filtered.map(order => (
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {displayOrders.map(order => (
               <OrderCard
                 key={order.id}
                 order={order}

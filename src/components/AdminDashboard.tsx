@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import type { RestaurantConfig } from './AdminPage';
 import MenuDisplayEditor from './MenuDisplayEditor';
+import { useKDSStore } from '../stores/kdsStore';
 
 type TabKey = 'settings' | 'menu-display';
 
@@ -19,6 +20,8 @@ interface Props {
 export default function AdminDashboard({ config, pin, onSaved, onLogout }: Props) {
   const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
   const [activeTab, setActiveTab] = useState<TabKey>('settings');
+  const { scheduledActivationMinutes, setScheduledActivationMinutes } = useKDSStore();
+  const [activationInput, setActivationInput] = useState(String(scheduledActivationMinutes));
 
   const [name, setName] = useState(config.name);
   const [taxRate, setTaxRate] = useState((config.tax_rate * 100).toFixed(2));
@@ -201,6 +204,41 @@ export default function AdminDashboard({ config, pin, onSaved, onLogout }: Props
                   <Input id="confirmpin" type="password" value={confirmPin} onChange={e => setConfirmPin(e.target.value)} placeholder="Confirm PIN" maxLength={8} />
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* KDS Settings (localStorage 저장 — 서버 전송 불필요) */}
+          <Card>
+            <CardHeader><CardTitle className="text-sm uppercase tracking-wider">KDS Settings</CardTitle></CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="activation">예약 주문 활성화 (분 전)</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="activation"
+                    type="number"
+                    min={5}
+                    max={120}
+                    value={activationInput}
+                    onChange={(e) => setActivationInput(e.target.value)}
+                    className="w-24"
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      const v = parseInt(activationInput, 10);
+                      if (!isNaN(v) && v >= 5 && v <= 120) setScheduledActivationMinutes(v);
+                    }}
+                  >
+                    Apply
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  픽업 시간 N분 전부터 Kitchen 탭 메인에 표시. 이전까지는 Upcoming 스트립에 대기. (기본값: 20분)
+                </p>
+              </div>
             </CardContent>
           </Card>
 
