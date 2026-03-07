@@ -11,6 +11,7 @@ import PendingStrip from './components/PendingStrip';
 import PrintTicket from './components/PrintTicket';
 import RestaurantLogin from './components/RestaurantLogin';
 import AdminPage from './components/AdminPage';
+import KDSSettingsPanel from './components/KDSSettingsPanel';
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
 
@@ -28,6 +29,7 @@ function KDSApp() {
   } = useKDSStore();
 
   const [activeTab, setActiveTab] = useState<'kitchen' | 'done'>('kitchen');
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
 
   // 30초마다 now 갱신 → 예약 주문 자동 활성화 체크
@@ -197,6 +199,8 @@ function KDSApp() {
     <div className="min-h-screen flex flex-col bg-background max-w-[1024px] mx-auto">
       {printOrder && <PrintTicket order={printOrder} />}
 
+      <KDSSettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+
       <StatusBar
         connected={connected}
         restaurantName={restaurantName}
@@ -208,6 +212,7 @@ function KDSApp() {
         onLogout={handleLogout}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
+        onSettings={() => setSettingsOpen(true)}
       />
 
       {/* 예약 대기 스트립 (Kitchen 탭, 대기 주문 있을 때만) */}

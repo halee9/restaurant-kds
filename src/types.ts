@@ -53,4 +53,5 @@ export interface KDSOrder {
   note?: string;
   createdAt: string;
   updatedAt: string;
+  startedAt?: string;   // IN_PROGRESS로 전환된 시각 (정렬용)
 }

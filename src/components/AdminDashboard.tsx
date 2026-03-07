@@ -6,7 +6,6 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import type { RestaurantConfig } from './AdminPage';
 import MenuDisplayEditor from './MenuDisplayEditor';
-import { useKDSStore } from '../stores/kdsStore';
 
 type TabKey = 'settings' | 'menu-display';
 
@@ -20,12 +19,7 @@ interface Props {
 export default function AdminDashboard({ config, pin, onSaved, onLogout }: Props) {
   const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
   const [activeTab, setActiveTab] = useState<TabKey>('settings');
-  const {
-    scheduledActivationMinutes, setScheduledActivationMinutes,
-    sectionSeparation, setSectionSeparation,
-    autoStartOrders, setAutoStartOrders,
-  } = useKDSStore();
-  const [activationInput, setActivationInput] = useState(String(scheduledActivationMinutes));
+  // KDS 런타임 설정은 KDS 화면 내 ⚙ 패널에서 관리
 
   const [name, setName] = useState(config.name);
   const [taxRate, setTaxRate] = useState((config.tax_rate * 100).toFixed(2));
@@ -211,80 +205,7 @@ export default function AdminDashboard({ config, pin, onSaved, onLogout }: Props
             </CardContent>
           </Card>
 
-          {/* KDS Settings (localStorage 저장 — 서버 전송 불필요) */}
-          <Card>
-            <CardHeader><CardTitle className="text-sm uppercase tracking-wider">KDS Settings</CardTitle></CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="activation">예약 주문 활성화 (분 전)</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="activation"
-                    type="number"
-                    min={5}
-                    max={120}
-                    value={activationInput}
-                    onChange={(e) => setActivationInput(e.target.value)}
-                    className="w-24"
-                  />
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => {
-                      const v = parseInt(activationInput, 10);
-                      if (!isNaN(v) && v >= 5 && v <= 120) setScheduledActivationMinutes(v);
-                    }}
-                  >
-                    Apply
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  픽업 시간 N분 전부터 Kitchen 탭 메인에 표시. 이전까지는 Upcoming 스트립에 대기. (기본값: 20분)
-                </p>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-sm">리스트뷰 섹션 분리</Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    IN-STORE / PICKUP & DELIVERY 구역 분리 (기본값: ON)
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={sectionSeparation}
-                  onClick={() => setSectionSeparation(!sectionSeparation)}
-                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors
-                    ${sectionSeparation ? 'bg-primary' : 'bg-input'}`}
-                >
-                  <span className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transition-transform
-                    ${sectionSeparation ? 'translate-x-5' : 'translate-x-0'}`} />
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-sm">주문 자동 시작</Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    새 주문 수신 시 즉시 IN_PROGRESS 처리 (기본값: ON)
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={autoStartOrders}
-                  onClick={() => setAutoStartOrders(!autoStartOrders)}
-                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors
-                    ${autoStartOrders ? 'bg-primary' : 'bg-input'}`}
-                >
-                  <span className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transition-transform
-                    ${autoStartOrders ? 'translate-x-5' : 'translate-x-0'}`} />
-                </button>
-              </div>
-            </CardContent>
-          </Card>
+          {/* KDS Settings — KDS 화면의 ⚙ 아이콘으로 이동됨 */}
 
           <Separator />
 

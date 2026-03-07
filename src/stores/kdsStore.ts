@@ -7,6 +7,8 @@ const ACTIVATION_KEY = 'kds_activation_minutes';
 const DEFAULT_ACTIVATION = 20;
 const SEP_KEY = 'kds_section_separation';
 const AUTO_START_KEY = 'kds_auto_start';
+const SPLIT_PCT_KEY = 'kds_instore_split_pct';
+const DEFAULT_SPLIT_PCT = 40;
 
 interface KDSState {
   // 상태
@@ -20,6 +22,7 @@ interface KDSState {
   scheduledActivationMinutes: number;
   sectionSeparation: boolean;
   autoStartOrders: boolean;
+  inStoreSplitPct: number;  // IN-STORE 섹션 높이 % (기본 40)
 
   // 주문 액션
   setOrders: (orders: KDSOrder[]) => void;
@@ -35,6 +38,7 @@ interface KDSState {
   setScheduledActivationMinutes: (minutes: number) => void;
   setSectionSeparation: (v: boolean) => void;
   setAutoStartOrders: (v: boolean) => void;
+  setInStoreSplitPct: (pct: number) => void;
 
   // 파생 상태
   filteredOrders: () => KDSOrder[];
@@ -50,6 +54,7 @@ export const useKDSStore = create<KDSState>()((set, get) => ({
   scheduledActivationMinutes: parseInt(localStorage.getItem(ACTIVATION_KEY) ?? String(DEFAULT_ACTIVATION)),
   sectionSeparation: localStorage.getItem(SEP_KEY) !== 'false',
   autoStartOrders: localStorage.getItem(AUTO_START_KEY) !== 'false',
+  inStoreSplitPct: parseInt(localStorage.getItem(SPLIT_PCT_KEY) ?? String(DEFAULT_SPLIT_PCT)),
 
   setOrders: (orders) => set({ orders }),
 
@@ -61,9 +66,17 @@ export const useKDSStore = create<KDSState>()((set, get) => ({
 
   updateOrderStatus: (id, status) =>
     set((state) => ({
-      orders: state.orders.map((o) =>
-        o.id === id ? { ...o, status, updatedAt: new Date().toISOString() } : o
-      ),
+      orders: state.orders.map((o) => {
+        if (o.id !== id) return o;
+        const now = new Date().toISOString();
+        return {
+          ...o,
+          status,
+          updatedAt: now,
+          // IN_PROGRESS 전환 시마다 startedAt 갱신 (재시작 포함)
+          ...(status === 'IN_PROGRESS' ? { startedAt: now } : {}),
+        };
+      }),
     })),
 
   cancelOrder: (id) =>
@@ -89,6 +102,12 @@ export const useKDSStore = create<KDSState>()((set, get) => ({
   setAutoStartOrders: (v) => {
     localStorage.setItem(AUTO_START_KEY, String(v));
     set({ autoStartOrders: v });
+  },
+
+  setInStoreSplitPct: (pct) => {
+    const clamped = Math.round(Math.max(10, Math.min(90, pct)));
+    localStorage.setItem(SPLIT_PCT_KEY, String(clamped));
+    set({ inStoreSplitPct: clamped });
   },
 
   filteredOrders: () => {

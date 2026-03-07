@@ -1,4 +1,4 @@
-import { LayoutGrid, List, X } from 'lucide-react';
+import { LayoutGrid, List, Settings, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -15,13 +15,14 @@ interface Props {
   onLogout: () => void;
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
+  onSettings: () => void;
 }
 
 export default function StatusBar({
   connected, restaurantName,
   activeTab, onTabChange,
   kitchenCount, pendingCount, doneCount,
-  onLogout, viewMode, onViewModeChange,
+  onLogout, viewMode, onViewModeChange, onSettings,
 }: Props) {
   return (
     <div className="no-print flex items-center justify-between px-5 py-2.5 bg-card border-b border-border">
@@ -100,6 +101,10 @@ export default function StatusBar({
         <span className="text-sm text-muted-foreground hidden sm:block">
           {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
         </span>
+        <Separator orientation="vertical" className="h-5" />
+        <Button variant="ghost" size="sm" onClick={onSettings} className="h-8 px-2.5 text-muted-foreground" title="KDS Settings">
+          <Settings className="h-5 w-5" />
+        </Button>
         <Separator orientation="vertical" className="h-5" />
         <Button variant="ghost" size="sm" onClick={onLogout} className="h-8 px-2.5 text-muted-foreground" title="Logout">
           <X className="h-5 w-5" />
