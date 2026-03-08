@@ -1,15 +1,47 @@
 import React from 'react';
-import { CornerUpLeft, AlertTriangle, Printer, Check } from 'lucide-react';
+import { CornerUpLeft, Printer, Check, Info } from 'lucide-react';
 import type { KDSOrder, OrderStatus } from '../types';
-import { getItemDisplay, getModifierDisplay, mergeLineItems, formatElapsed } from '../utils';
+import { getItemDisplay, getModifierDisplay, mergeLineItems, formatElapsed, getElapsedMinutes } from '../utils';
 import { useKDSStore } from '../stores/kdsStore';
+
+// ── 경과 시간 긴급도 ───────────────────────────────────────────────────────
+type Urgency = 0 | 1 | 2 | 3;
+
+function getUrgency(
+  isoString: string,
+  yellow: number,
+  orange: number,
+  red: number,
+): Urgency {
+  const mins = getElapsedMinutes(isoString);
+  if (mins >= red)    return 3;
+  if (mins >= orange) return 2;
+  if (mins >= yellow) return 1;
+  return 0;
+}
+
+const URGENCY_BAR: Record<Urgency, string> = {
+  0: 'bg-green-500',
+  1: 'bg-yellow-400',
+  2: 'bg-orange-400',
+  3: 'bg-red-500',
+};
+
+const URGENCY_TIME: Record<Urgency, string> = {
+  0: 'text-green-400',
+  1: 'text-yellow-400',
+  2: 'text-orange-400',
+  3: 'text-red-400 animate-pulse',
+};
 
 interface Props {
   activeOrders: KDSOrder[];
-  incomingOrders: KDSOrder[];
-  doneOrders: KDSOrder[];
+  scheduledOrders: KDSOrder[];   // OPEN + isScheduled (예약 대기)
+  readyOrders: KDSOrder[];       // READY (픽업 대기)
+  completedOrders: KDSOrder[];   // COMPLETED (완전 종료)
   onUpdateStatus: (orderId: string, status: OrderStatus) => void;
   onPrint: (order: KDSOrder) => void;
+  onInfo: (order: KDSOrder) => void;
 }
 
 // 소스 → 배지 색상 (OrderCard와 동일)
@@ -50,12 +82,14 @@ function ActiveOrderRow({
   order,
   onUpdateStatus,
   onPrint,
+  onInfo,
 }: {
   order: KDSOrder;
   onUpdateStatus: Props['onUpdateStatus'];
   onPrint: Props['onPrint'];
+  onInfo: Props['onInfo'];
 }) {
-  const { menuDisplayConfig } = useKDSStore();
+  const { menuDisplayConfig, urgencyYellowMin, urgencyOrangeMin, urgencyRedMin } = useKDSStore();
   const { menuItems, modifiers } = menuDisplayConfig;
 
   const items = mergeLineItems(order.lineItems).filter(
@@ -63,6 +97,14 @@ function ActiveOrderRow({
   );
 
   const sourceBadge = SOURCE_VARIANT[order.source] ?? SOURCE_VARIANT['Unknown'];
+
+  // 긴급도 — startedAt 기준 (없으면 createdAt 폴백), 임계값은 store에서
+  const urgency = getUrgency(
+    order.startedAt ?? order.createdAt,
+    urgencyYellowMin,
+    urgencyOrangeMin,
+    urgencyRedMin,
+  );
 
   // 아이템별 완료 카운트 (로컬) — idx → 완료된 수량
   const [doneCounts, setDoneCounts] = React.useState<Map<number, number>>(new Map());
@@ -115,6 +157,9 @@ function ActiveOrderRow({
     <div
       className="relative flex items-stretch border-b border-white/20 transition-all"
     >
+      {/* 긴급도 바 — 왼쪽 세로 색상 스트라이프 */}
+      <div className={`w-1 self-stretch shrink-0 transition-colors duration-500 ${URGENCY_BAR[urgency]}`} />
+
       {/* 주문번호 배지 — 클릭 시 상태 전진 */}
       <div
         className={`w-14 flex items-center justify-center shrink-0 cursor-pointer hover:brightness-125 transition-all ${badgeClass(order.status)}`}
@@ -147,10 +192,7 @@ function ActiveOrderRow({
                 }
                 onClick={(e) => handleItemClick(e, idx, qty)}
               >
-                {isDone
-                  ? <Check className="h-7 w-7 text-green-500 shrink-0" />
-                  : display.serverAlert && <AlertTriangle className="h-5 w-5 text-red-500 shrink-0" />
-                }
+                {isDone && <Check className="h-7 w-7 text-green-500 shrink-0" />}
                 {display.label}
               </span>
               {qty > 1 && (
@@ -174,13 +216,21 @@ function ActiveOrderRow({
               {visibleMods.map((mod, mIdx) => {
                 const modDisplay = getModifierDisplay(mod, modifiers);
                 return (
-                  <span key={mIdx} className={`text-sm px-2 py-0.5 rounded border font-medium shrink-0 flex items-center gap-1 transition-all ${
-                    isDone
-                      ? 'bg-white/5 text-white/25 border-white/10'
-                      : 'bg-white/10 text-white/80 border-white/20'
-                  }`}>
+                  <span
+                    key={mIdx}
+                    className={`text-sm px-2 py-0.5 rounded border font-medium shrink-0 flex items-center gap-1 transition-all bg-transparent ${
+                      isDone
+                        ? 'border-white/10 text-white/25'
+                        : modDisplay.bgColor
+                          ? ''
+                          : 'border-white/30 text-white/70'
+                    }`}
+                    style={!isDone && modDisplay.bgColor
+                      ? { borderColor: modDisplay.bgColor, color: modDisplay.bgColor }
+                      : undefined
+                    }
+                  >
                     {modDisplay.label}
-                    {modDisplay.serverAlert && <AlertTriangle className="h-3 w-3 text-red-400" />}
                   </span>
                 );
               })}
@@ -202,13 +252,20 @@ function ActiveOrderRow({
         <span className="text-sm font-semibold text-blue-300 shrink-0">
           {order.displayName}
         </span>
-        <span className="text-sm text-orange-300 font-bold tabular-nums shrink-0">
-          {formatElapsed(order.createdAt)}
+        <span className={`text-sm font-bold tabular-nums shrink-0 transition-colors ${URGENCY_TIME[urgency]}`}>
+          {formatElapsed(order.startedAt ?? order.createdAt)}
         </span>
         <button
           className="no-print opacity-50 hover:opacity-90 transition-opacity pointer-events-auto"
+          onClick={(e) => { e.stopPropagation(); onInfo(order); }}
+          title="Order info"
+        >
+          <Info className="h-3.5 w-3.5" />
+        </button>
+        <button
+          className="no-print opacity-50 hover:opacity-90 transition-opacity pointer-events-auto"
           onClick={(e) => { e.stopPropagation(); onPrint(order); }}
-          title="Print"
+          title="Print ticket"
         >
           <Printer className="h-3.5 w-3.5" />
         </button>
@@ -308,8 +365,12 @@ function DoneOrderRow({
     <div
       className={`flex items-center border-b border-white/10 transition-all ${isReady ? '' : 'opacity-35'}`}
     >
-      {/* 주문번호 — 제일 왼쪽, 상태 색 */}
-      <span className={`w-9 pl-1.5 font-black text-sm shrink-0 ${isReady ? 'text-green-400' : 'text-white/30'}`}>
+      {/* 주문번호 — READY면 클릭 시 COMPLETED 전진 */}
+      <span
+        className={`w-9 pl-1.5 font-black text-sm shrink-0 ${isReady ? 'text-green-400 cursor-pointer hover:brightness-125' : 'text-white/30'}`}
+        onClick={() => isReady && onUpdateStatus(order.id, 'COMPLETED')}
+        title={isReady ? 'Mark as Completed' : undefined}
+      >
         {order.displayId}
       </span>
 
@@ -384,64 +445,150 @@ function EmptyState({ label }: { label: string }) {
 }
 
 // ── 메인 컴포넌트 ────────────────────────────────────────────────────────────
-export default function OrderList({ activeOrders, incomingOrders, doneOrders, onUpdateStatus, onPrint }: Props) {
-  const { sectionSeparation } = useKDSStore();
+export default function OrderList({ activeOrders, scheduledOrders, readyOrders, completedOrders, onUpdateStatus, onPrint, onInfo }: Props) {
+  const { sectionSeparation, inStoreSplitPct, setInStoreSplitPct } = useKDSStore();
 
-  const inStoreOrders = activeOrders.filter((o) => o.source === 'Kiosk');
-  const pickupOrders  = activeOrders.filter((o) => o.source !== 'Kiosk');
+  // IN_PROGRESS 전환 시각 순 정렬 (오래된 것 먼저)
+  const sortedActive = [...activeOrders].sort((a, b) => {
+    const ta = a.startedAt ?? a.createdAt;
+    const tb = b.startedAt ?? b.createdAt;
+    return ta.localeCompare(tb);
+  });
+
+  const inStoreOrders = sortedActive.filter((o) => o.source === 'Kiosk');
+  const pickupOrders  = sortedActive.filter((o) => o.source !== 'Kiosk');
+
+  // 드래그 가능한 구분선 — store에서 초기값, 드래그 종료 시 저장
+  const [splitPct, setSplitPct] = React.useState(inStoreSplitPct);
+  const splitPctRef  = React.useRef(inStoreSplitPct);
+  const leftPanelRef = React.useRef<HTMLDivElement>(null);
+  const isDragging   = React.useRef(false);
+
+  // AdminDashboard에서 값 변경 시 동기화
+  React.useEffect(() => {
+    setSplitPct(inStoreSplitPct);
+    splitPctRef.current = inStoreSplitPct;
+  }, [inStoreSplitPct]);
+
+  React.useEffect(() => {
+    function onMove(e: MouseEvent) {
+      if (!isDragging.current || !leftPanelRef.current) return;
+      const rect = leftPanelRef.current.getBoundingClientRect();
+      const pct  = Math.max(10, Math.min(90, ((e.clientY - rect.top) / rect.height) * 100));
+      splitPctRef.current = pct;
+      setSplitPct(pct);
+    }
+    function onUp() {
+      if (isDragging.current) {
+        isDragging.current = false;
+        document.body.style.cursor = '';
+        setInStoreSplitPct(splitPctRef.current); // 드래그 끝나면 store에 저장
+      }
+    }
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [setInStoreSplitPct]);
 
   return (
     <div className="flex h-full min-h-0 overflow-hidden no-print">
 
       {/* ── 왼쪽 패널: IN_PROGRESS 주문 ──────────────────────── */}
-      <div className="flex-[65] border-r border-border overflow-y-auto min-w-0">
+      <div
+        ref={leftPanelRef}
+        className="flex-[65] border-r border-border min-w-0 flex flex-col min-h-0"
+      >
         {sectionSeparation ? (
           <>
-            <SectionHeader title="IN-STORE ORDERS" />
-            {inStoreOrders.length === 0
-              ? <EmptyState label="No In-Store Orders" />
-              : inStoreOrders.map((o) => (
-                  <ActiveOrderRow key={o.id} order={o} onUpdateStatus={onUpdateStatus} onPrint={onPrint} />
-                ))
-            }
-            <SectionHeader title="PICKUP & DELIVERY ORDERS" />
-            {pickupOrders.length === 0
-              ? <EmptyState label="No Pickup & Delivery Orders" />
-              : pickupOrders.map((o) => (
-                  <ActiveOrderRow key={o.id} order={o} onUpdateStatus={onUpdateStatus} onPrint={onPrint} />
-                ))
-            }
+            {/* IN-STORE 섹션 — 독립 스크롤 */}
+            <div
+              className="overflow-y-auto min-h-0"
+              style={{ flexBasis: `${splitPct}%`, flexGrow: 0, flexShrink: 0 }}
+            >
+              <SectionHeader title="IN-STORE ORDERS" />
+              {inStoreOrders.length === 0
+                ? <EmptyState label="No In-Store Orders" />
+                : inStoreOrders.map((o) => (
+                    <ActiveOrderRow key={o.id} order={o} onUpdateStatus={onUpdateStatus} onPrint={onPrint} onInfo={onInfo} />
+                  ))
+              }
+            </div>
+
+            {/* 드래그 구분선 */}
+            <div
+              className="h-2 shrink-0 flex items-center justify-center select-none cursor-row-resize bg-border/40 hover:bg-primary/40 active:bg-primary/60 transition-colors"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                isDragging.current = true;
+                document.body.style.cursor = 'row-resize';
+              }}
+            >
+              <div className="w-10 h-0.5 rounded-full bg-white/30" />
+            </div>
+
+            {/* PICKUP 섹션 — 독립 스크롤 */}
+            <div className="flex-1 overflow-y-auto min-h-0">
+              <SectionHeader title="PICKUP & DELIVERY ORDERS" />
+              {pickupOrders.length === 0
+                ? <EmptyState label="No Pickup & Delivery Orders" />
+                : pickupOrders.map((o) => (
+                    <ActiveOrderRow key={o.id} order={o} onUpdateStatus={onUpdateStatus} onPrint={onPrint} onInfo={onInfo} />
+                  ))
+              }
+            </div>
           </>
         ) : (
-          activeOrders.length === 0
-            ? <EmptyState label="No Active Orders" />
-            : activeOrders.map((o) => (
-                <ActiveOrderRow key={o.id} order={o} onUpdateStatus={onUpdateStatus} onPrint={onPrint} />
-              ))
+          <div className="flex-1 overflow-y-auto min-h-0">
+            {sortedActive.length === 0
+              ? <EmptyState label="No Active Orders" />
+              : sortedActive.map((o) => (
+                  <ActiveOrderRow key={o.id} order={o} onUpdateStatus={onUpdateStatus} onPrint={onPrint} onInfo={onInfo} />
+                ))
+            }
+          </div>
         )}
       </div>
 
       {/* ── 오른쪽 패널 ───────────────────────────────────────── */}
       <div className="flex-[35] overflow-y-auto min-w-0 flex flex-col">
 
-        {/* 상단: INCOMING (OPEN 미시작 주문) */}
-        {incomingOrders.length > 0 && (
+        {/* 상단: SCHEDULED (예약 대기 주문) */}
+        {scheduledOrders.length > 0 && (
           <>
-            <SectionHeader title="INCOMING" />
-            {incomingOrders.map((o) => (
+            <SectionHeader title="SCHEDULED" />
+            {scheduledOrders.map((o) => (
               <IncomingOrderRow key={o.id} order={o} onUpdateStatus={onUpdateStatus} />
             ))}
           </>
         )}
 
-        {/* 하단: DONE (READY + COMPLETED) */}
-        <SectionHeader title="DONE" />
-        {doneOrders.length === 0
-          ? <EmptyState label="No Completed Orders" />
-          : doneOrders.map((o) => (
+        {/* 중단: READY (픽업 대기) */}
+        {readyOrders.length > 0 && (
+          <>
+            <SectionHeader title="READY" />
+            {readyOrders.map((o) => (
               <DoneOrderRow key={o.id} order={o} onUpdateStatus={onUpdateStatus} />
-            ))
-        }
+            ))}
+          </>
+        )}
+
+        {/* 하단: COMPLETED */}
+        {completedOrders.length > 0 && (
+          <>
+            <SectionHeader title="COMPLETED" />
+            {completedOrders.map((o) => (
+              <DoneOrderRow key={o.id} order={o} onUpdateStatus={onUpdateStatus} />
+            ))}
+          </>
+        )}
+
+        {/* 아무것도 없을 때 */}
+        {scheduledOrders.length === 0 && readyOrders.length === 0 && completedOrders.length === 0 && (
+          <EmptyState label="No Orders" />
+        )}
       </div>
     </div>
   );

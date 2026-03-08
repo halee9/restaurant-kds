@@ -9,6 +9,14 @@ export function formatTime(isoString: string): string {
   return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 }
 
+export function formatDateTime(isoString: string): string {
+  const date = new Date(isoString);
+  return date.toLocaleString('en-US', {
+    month: 'numeric', day: 'numeric', year: 'numeric',
+    hour: 'numeric', minute: '2-digit', hour12: true,
+  });
+}
+
 export function getElapsedMinutes(isoString: string): number {
   return Math.floor((Date.now() - new Date(isoString).getTime()) / 60000);
 }
@@ -52,16 +60,18 @@ export function getItemDisplay(
   };
 }
 
-/** 모디파이어: 약어 + KDS 표시 여부 + 서버 경고 반환 */
+/** 모디파이어: 약어 + 색상 + KDS 표시 여부 + 서버 경고 반환 */
 export function getModifierDisplay(
   modifierName: string,
   modifierDisplay: ModifierDisplayItem[]
-): { label: string; showOnKds: boolean; serverAlert: boolean } {
+): { label: string; bgColor: string; textColor: string; showOnKds: boolean; serverAlert: boolean } {
   const config = modifierDisplay.find(
     (m) => m.modifier_name.toLowerCase().trim() === modifierName.toLowerCase().trim()
   );
   return {
     label:       config?.abbreviation || modifierName,
+    bgColor:     config?.bg_color     || '',
+    textColor:   config?.text_color   || '',
     showOnKds:   config?.show_on_kds  ?? true,
     serverAlert: config?.server_alert ?? false,
   };

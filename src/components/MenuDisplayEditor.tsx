@@ -97,7 +97,7 @@ export default function MenuDisplayEditor({ restaurantCode, pin }: Props) {
         (m) => m.abbreviation || m.bg_color || m.text_color || m.show_on_kds === false || m.server_alert === true
       );
       const modifiers = Object.values(modifierConfig).filter(
-        (m) => m.abbreviation || m.show_on_kds === false || m.server_alert === true
+        (m) => m.abbreviation || m.bg_color || m.text_color || m.show_on_kds === false || m.server_alert === true
       );
 
       res = await fetch(`${SERVER_URL}/api/menu-display/${restaurantCode.toLowerCase()}`, {
@@ -257,7 +257,7 @@ export default function MenuDisplayEditor({ restaurantCode, pin }: Props) {
       <Card>
         <CardHeader>
           <CardTitle className="text-sm uppercase tracking-wider">Modifiers / Options</CardTitle>
-          <p className="text-xs text-muted-foreground">옵션 약어만 설정합니다. KDS에서 모디파이어를 짧게 표시합니다.</p>
+          <p className="text-xs text-muted-foreground">약어와 배경색/글씨색을 설정하면 KDS 배지에 적용됩니다. 색상 미설정 시 기본 흰색 배지가 사용됩니다.</p>
         </CardHeader>
         <CardContent>
           {allModifiers.length === 0 ? (
@@ -266,41 +266,94 @@ export default function MenuDisplayEditor({ restaurantCode, pin }: Props) {
             <div className="flex flex-col gap-2">
               {allModifiers.map((mod) => {
                 const cfg = modifierConfig[mod.name] ?? {};
+                const previewLabel = cfg.abbreviation || mod.name;
                 return (
-                  <div key={mod.id} className="flex items-center gap-2 flex-wrap border border-border rounded px-2 py-1.5">
-                    <span className="text-sm text-muted-foreground flex-1 truncate min-w-[8rem]">{mod.name}</span>
-                    {/* 약어 입력 */}
-                    <Input
-                      value={cfg.abbreviation ?? ''}
-                      onChange={(e) => updateModifierField(mod.name, 'abbreviation', e.target.value)}
-                      maxLength={6}
-                      placeholder={mod.name.slice(0, 5)}
-                      className="h-7 w-20 text-xs shrink-0"
-                    />
-                    {cfg.abbreviation && (
-                      <span className="text-xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground shrink-0">
-                        {cfg.abbreviation}
+                  <div key={mod.id} className="flex flex-col gap-2 border border-border rounded-md px-2 py-1.5">
+                    {/* 상단 행: 미리보기 · 이름 · 약어 입력 · 토글 */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {/* 미리보기 배지 — 아웃라인 스타일 (KDS와 동일) */}
+                      <span
+                        className="px-2 py-0.5 rounded font-bold text-xs min-w-[2.5rem] text-center shrink-0 border bg-transparent"
+                        style={cfg.bg_color
+                          ? { borderColor: cfg.bg_color, color: cfg.bg_color }
+                          : { borderColor: 'rgba(255,255,255,0.3)', color: 'rgba(255,255,255,0.6)' }
+                        }
+                      >
+                        {previewLabel.slice(0, 6)}
                       </span>
-                    )}
-                    {/* 토글: Show on KDS / Server Alert */}
-                    <label className="flex items-center gap-1 cursor-pointer shrink-0">
-                      <input
-                        type="checkbox"
-                        checked={cfg.show_on_kds ?? true}
-                        onChange={(e) => updateModifierField(mod.name, 'show_on_kds', e.target.checked)}
-                        className="w-3.5 h-3.5"
+                      {/* Square 원래 이름 */}
+                      <span className="text-sm text-muted-foreground flex-1 truncate min-w-[6rem]">{mod.name}</span>
+                      {/* 약어 입력 */}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Label className="text-xs shrink-0">Abbr.</Label>
+                        <Input
+                          value={cfg.abbreviation ?? ''}
+                          onChange={(e) => updateModifierField(mod.name, 'abbreviation', e.target.value)}
+                          maxLength={6}
+                          placeholder={mod.name.slice(0, 5)}
+                          className="h-7 w-20 text-xs"
+                        />
+                      </div>
+                      {/* 토글: Show on KDS / Server Alert */}
+                      <label className="flex items-center gap-1 cursor-pointer shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={cfg.show_on_kds ?? true}
+                          onChange={(e) => updateModifierField(mod.name, 'show_on_kds', e.target.checked)}
+                          className="w-3.5 h-3.5"
+                        />
+                        <span className="text-xs text-muted-foreground">KDS</span>
+                      </label>
+                      <label className="flex items-center gap-1 cursor-pointer shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={cfg.server_alert ?? false}
+                          onChange={(e) => updateModifierField(mod.name, 'server_alert', e.target.checked)}
+                          className="w-3.5 h-3.5 accent-red-500"
+                        />
+                        <span className="text-xs text-red-400">⚠</span>
+                      </label>
+                    </div>
+                    {/* 하단 행: 색상 프리셋 */}
+                    <div className="flex items-center gap-1.5 flex-wrap pl-1">
+                      <span className="text-xs text-muted-foreground mr-1">Color:</span>
+                      {COLOR_PRESETS.map((preset) => (
+                        <button
+                          key={preset.bg}
+                          type="button"
+                          title={preset.label}
+                          onClick={() => {
+                            updateModifierField(mod.name, 'bg_color', preset.bg);
+                            updateModifierField(mod.name, 'text_color', preset.text);
+                          }}
+                          className={`w-5 h-5 rounded border-2 transition-all ${
+                            cfg.bg_color === preset.bg ? 'border-primary scale-110' : 'border-border'
+                          }`}
+                          style={{ backgroundColor: preset.bg }}
+                        />
+                      ))}
+                      {/* hex 직접 입력 */}
+                      <Input
+                        value={cfg.bg_color ?? ''}
+                        onChange={(e) => updateModifierField(mod.name, 'bg_color', e.target.value)}
+                        placeholder="#hex"
+                        className="h-6 w-16 text-xs"
                       />
-                      <span className="text-xs text-muted-foreground">KDS</span>
-                    </label>
-                    <label className="flex items-center gap-1 cursor-pointer shrink-0">
-                      <input
-                        type="checkbox"
-                        checked={cfg.server_alert ?? false}
-                        onChange={(e) => updateModifierField(mod.name, 'server_alert', e.target.checked)}
-                        className="w-3.5 h-3.5 accent-red-500"
-                      />
-                      <span className="text-xs text-red-400">⚠</span>
-                    </label>
+                      {/* 색상 리셋 */}
+                      {cfg.bg_color && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            updateModifierField(mod.name, 'bg_color', '');
+                            updateModifierField(mod.name, 'text_color', '');
+                          }}
+                          className="text-xs text-muted-foreground hover:text-foreground transition-colors px-1"
+                          title="Reset color"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })}

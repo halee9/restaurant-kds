@@ -9,6 +9,15 @@ import MenuDisplayEditor from './MenuDisplayEditor';
 
 type TabKey = 'settings' | 'menu-display';
 
+const LOGO_OPTIONS = [
+  { key: 'ginkgo', label: 'Ginkgo',   emoji: '🌿', bg: '#14532d', desc: 'Japanese ginkgo leaf'    },
+  { key: 'sakura', label: 'Sakura',   emoji: '🌸', bg: '#881337', desc: 'Cherry blossom'          },
+  { key: 'flame',  label: 'Flame',    emoji: '🔥', bg: '#7c2d12', desc: 'Fire · BBQ · Grill'      },
+  { key: 'bowl',   label: 'Bowl',     emoji: '🍚', bg: '#2e1065', desc: 'Rice bowl & chopsticks'  },
+  { key: 'star',   label: 'Star',     emoji: '⭐', bg: '#1c1a06', desc: 'Classic restaurant star' },
+  { key: 'mono',   label: 'Monogram', emoji: '🔤', bg: '#334155', desc: 'Restaurant initials'     },
+] as const;
+
 interface Props {
   config: RestaurantConfig;
   pin: string;
@@ -21,6 +30,7 @@ export default function AdminDashboard({ config, pin, onSaved, onLogout }: Props
   const [activeTab, setActiveTab] = useState<TabKey>('settings');
   // KDS 런타임 설정은 KDS 화면 내 ⚙ 패널에서 관리
 
+  const [logoStyle, setLogoStyle] = useState(config.logo_style ?? 'mono');
   const [name, setName] = useState(config.name);
   const [taxRate, setTaxRate] = useState((config.tax_rate * 100).toFixed(2));
   const [tipPercentages, setTipPercentages] = useState(config.tip_percentages.join(', '));
@@ -66,6 +76,7 @@ export default function AdminDashboard({ config, pin, onSaved, onLogout }: Props
           enable_tipping: enableTipping,
           session_timeout_minutes: parsedTimeout,
           settings_pin: effectivePin,
+          logo_style: logoStyle,
         }),
       });
 
@@ -142,6 +153,35 @@ export default function AdminDashboard({ config, pin, onSaved, onLogout }: Props
                 <Label>Square Location ID</Label>
                 <Input value={config.square_location_id} disabled className="text-muted-foreground" />
                 <p className="text-xs text-muted-foreground">Contact admin to change Square settings</p>
+              </div>
+
+              {/* Receipt Logo */}
+              <div className="flex flex-col gap-2">
+                <Label>Receipt Logo Style</Label>
+                <div className="flex gap-2 flex-wrap">
+                  {LOGO_OPTIONS.map(opt => (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      title={opt.desc}
+                      onClick={() => setLogoStyle(opt.key)}
+                      className={`flex flex-col items-center gap-1 px-2 py-2 rounded-xl border-2 transition-all ${
+                        logoStyle === opt.key
+                          ? 'border-primary bg-primary/10'
+                          : 'border-border hover:border-muted-foreground'
+                      }`}
+                    >
+                      <div
+                        className="w-10 h-10 rounded-full flex items-center justify-center text-xl"
+                        style={{ background: opt.bg }}
+                      >
+                        {opt.emoji}
+                      </div>
+                      <span className="text-[10px] text-muted-foreground leading-none">{opt.label}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">Shown on the customer receipt page (QR code link)</p>
               </div>
             </CardContent>
           </Card>

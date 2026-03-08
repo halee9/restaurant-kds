@@ -8,7 +8,8 @@ import OrderCard from './components/OrderCard';
 import OrderList from './components/OrderList';
 import StatusBar from './components/StatusBar';
 import PendingStrip from './components/PendingStrip';
-import PrintTicket from './components/PrintTicket';
+import OrderTicketModal from './components/OrderTicketModal';
+import SilentPrintTicket from './components/SilentPrintTicket';
 import RestaurantLogin from './components/RestaurantLogin';
 import AdminPage from './components/AdminPage';
 import KDSSettingsPanel from './components/KDSSettingsPanel';
@@ -18,15 +19,18 @@ const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
 function KDSApp() {
   const { restaurantCode, restaurantName, login, logout, viewMode, setViewMode } = useSessionStore();
   const {
-    printOrder,
     setOrders, addOrder, updateOrderStatus, cancelOrder,
-    setConnected, setPrintOrder,
+    setConnected,
     setMenuDisplayConfig,
     connected,
     orders,
     scheduledActivationMinutes,
     autoStartOrders,
+    autoPrint,
   } = useKDSStore();
+  const [ticketOrder, setTicketOrder] = useState<KDSOrder | null>(null);
+  const [printQueue, setPrintQueue] = useState<KDSOrder[]>([]);
+  const autoPrintedRef = useRef<Set<string>>(new Set());
 
   const [activeTab, setActiveTab] = useState<'kitchen' | 'done'>('kitchen');
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -39,12 +43,17 @@ function KDSApp() {
   }, []);
 
   // 재연결 시 활성 주문 복구
+  // setOrders(전체교체) 대신 merge — 서버 24h 윈도우 밖으로 밀려난 로컬 주문(COMPLETED 등)을 유지
   const fetchActiveOrders = async (code: string) => {
     try {
       const res = await fetch(`${SERVER_URL}/api/orders/${code.toLowerCase()}/active`);
       if (!res.ok) return;
-      const { orders: activeOrders } = await res.json();
-      setOrders(activeOrders);
+      const { orders: serverOrders }: { orders: KDSOrder[] } = await res.json();
+      // 서버 응답에 없는 로컬 주문은 보존 (24h 만료된 COMPLETED 등)
+      const currentOrders = useKDSStore.getState().orders;
+      const serverIdSet = new Set(serverOrders.map((o) => o.id));
+      const localOnly = currentOrders.filter((o) => !serverIdSet.has(o.id));
+      setOrders([...serverOrders, ...localOnly]);
     } catch (err) {
       console.warn('[KDS] Could not fetch active orders:', err);
     }
@@ -154,10 +163,28 @@ function KDSApp() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [now]);
 
+  // 직접 프린트 (🖨 아이콘 클릭) — 팝업 없이 바로 티켓 출력
   const handlePrint = (order: KDSOrder) => {
-    setPrintOrder(order);
-    setTimeout(() => { window.print(); setPrintOrder(null); }, 100);
+    setPrintQueue((q) => [...q, order]);
   };
+
+  // ℹ 아이콘 클릭 — 오더티켓 팝업 열기
+  const handleInfo = (order: KDSOrder) => {
+    setTicketOrder(order);
+  };
+
+  // ── 자동 프린트: IN_PROGRESS 전환 시 자동 출력 ─────────────────────────────
+  useEffect(() => {
+    if (!autoPrint || !restaurantCode) return;
+    const toPrint = orders.filter(
+      (o) => o.status === 'IN_PROGRESS' && !autoPrintedRef.current.has(o.id)
+    );
+    if (toPrint.length > 0) {
+      toPrint.forEach((o) => autoPrintedRef.current.add(o.id));
+      setPrintQueue((q) => [...q, ...toPrint]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orders, autoPrint, restaurantCode]);
 
   const handleLogout = () => {
     logout();
@@ -175,13 +202,14 @@ function KDSApp() {
   // 왼쪽 패널: 조리 중인 주문만
   const activeOrders = orders.filter((o) => o.status === 'IN_PROGRESS');
 
-  // 오른쪽 패널 상단: 미시작 주문 (OPEN — 비예약 + 예약 대기)
-  const incomingOrders = orders.filter((o) => o.status === 'OPEN');
+  // 오른쪽 패널 상단: 예약 대기 주문 (OPEN + isScheduled)
+  const scheduledOrders = orders.filter((o) => o.status === 'OPEN' && o.isScheduled);
 
-  // 오른쪽 패널 하단: 완료된 주문 (READY + COMPLETED)
-  const doneOrders = orders.filter((o) =>
-    o.status === 'READY' || o.status === 'COMPLETED'
-  );
+  // 오른쪽 패널 중단: 조리 완료 대기 (READY)
+  const readyOrders = orders.filter((o) => o.status === 'READY');
+
+  // 오른쪽 패널 하단: 완료된 주문 (COMPLETED)
+  const completedOrders = orders.filter((o) => o.status === 'COMPLETED');
 
   // 카드뷰 예약 대기 스트립용 (픽업까지 아직 여유 있는 예약 주문)
   const pendingOrders = orders.filter((o) =>
@@ -193,11 +221,22 @@ function KDSApp() {
   // 카드뷰에서 표시할 주문 목록
   const displayOrders = activeTab === 'kitchen'
     ? orders.filter((o) => o.status === 'OPEN' || o.status === 'IN_PROGRESS')
-    : doneOrders;
+    : [...readyOrders, ...completedOrders];
 
   return (
-    <div className="min-h-screen flex flex-col bg-background max-w-[1024px] mx-auto">
-      {printOrder && <PrintTicket order={printOrder} />}
+    <div className="h-screen flex flex-col bg-background max-w-[1024px] mx-auto overflow-hidden">
+      {/* 자동/직접 프린트 큐 — 한 번에 하나씩 출력 */}
+      {printQueue.length > 0 && (
+        <SilentPrintTicket
+          order={printQueue[0]}
+          onDone={() => setPrintQueue((q) => q.slice(1))}
+        />
+      )}
+
+      {/* 오더티켓 팝업 (ℹ 아이콘 클릭) */}
+      {ticketOrder && (
+        <OrderTicketModal order={ticketOrder} onClose={() => setTicketOrder(null)} />
+      )}
 
       <KDSSettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
@@ -207,8 +246,8 @@ function KDSApp() {
         activeTab={activeTab}
         onTabChange={setActiveTab}
         kitchenCount={activeOrders.length}
-        pendingCount={incomingOrders.length}
-        doneCount={doneOrders.length}
+        pendingCount={scheduledOrders.length}
+        doneCount={readyOrders.length + completedOrders.length}
         onLogout={handleLogout}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
@@ -224,10 +263,12 @@ function KDSApp() {
         {viewMode === 'list' ? (
           <OrderList
             activeOrders={activeOrders}
-            incomingOrders={incomingOrders}
-            doneOrders={doneOrders}
+            scheduledOrders={scheduledOrders}
+            readyOrders={readyOrders}
+            completedOrders={completedOrders}
             onUpdateStatus={handleUpdateStatus}
             onPrint={handlePrint}
+            onInfo={handleInfo}
           />
         ) : displayOrders.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">

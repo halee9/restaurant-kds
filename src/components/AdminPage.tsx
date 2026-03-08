@@ -13,6 +13,7 @@ export interface RestaurantConfig {
   settings_pin: string;
   enable_tipping: boolean;
   session_timeout_minutes: number;
+  logo_style?: string; // 영수증 페이지 로고 템플릿
 }
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
