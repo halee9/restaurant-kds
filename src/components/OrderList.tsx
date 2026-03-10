@@ -3,6 +3,7 @@ import { CornerUpLeft, Printer, Check } from 'lucide-react';
 import type { KDSOrder, OrderStatus } from '../types';
 import { getItemDisplay, getModifierDisplay, mergeLineItems, formatElapsed, getElapsedMinutes } from '../utils';
 import { useKDSStore } from '../stores/kdsStore';
+import { useSessionStore } from '../stores/sessionStore';
 
 // ── 경과 시간 긴급도 ───────────────────────────────────────────────────────
 type Urgency = 0 | 1 | 2 | 3;
@@ -415,15 +416,6 @@ function DoneOrderRow({
   );
 }
 
-// ── 섹션 헤더 ─────────────────────────────────────────────────────────────
-function SectionHeader({ title }: { title: string }) {
-  return (
-    <div className="text-center text-xs font-bold text-muted-foreground tracking-widest py-1.5 border-b border-border/50 bg-muted/10">
-      {title}
-    </div>
-  );
-}
-
 // ── 빈 상태 ────────────────────────────────────────────────────────────────
 function EmptyState({ label }: { label: string }) {
   return (
@@ -434,67 +426,121 @@ function EmptyState({ label }: { label: string }) {
   );
 }
 
+// ── 컬럼 헤더 ────────────────────────────────────────────────────────────────
+function ColumnHeader({ title, count }: { title: string; count: number }) {
+  return (
+    <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border/60 bg-muted/20 shrink-0">
+      <span className="text-[11px] font-bold text-muted-foreground tracking-widest uppercase">{title}</span>
+      {count > 0 && (
+        <span className="text-[10px] font-bold text-muted-foreground/60">({count})</span>
+      )}
+    </div>
+  );
+}
+
 // ── 메인 컴포넌트 ────────────────────────────────────────────────────────────
 export default function OrderList({ activeOrders, scheduledOrders, readyOrders, completedOrders, onUpdateStatus, onPrint }: Props) {
-  // IN_PROGRESS 전환 시각 순 정렬 (오래된 것 먼저)
-  const sortedActive = [...activeOrders].sort((a, b) => {
-    const ta = a.startedAt ?? a.createdAt;
-    const tb = b.startedAt ?? b.createdAt;
-    return ta.localeCompare(tb);
-  });
+  const { activeTab } = useSessionStore();
+
+  // ── Active 탭 ─────────────────────────────────────────────────────────────
+  if (activeTab === 'active') {
+    // startedAt/createdAt 오름차순 (오래된 주문 먼저)
+    const sorted = [...activeOrders].sort((a, b) => {
+      const ta = a.startedAt ?? a.createdAt;
+      const tb = b.startedAt ?? b.createdAt;
+      return ta.localeCompare(tb);
+    });
+
+    // Kiosk = 왼쪽, 나머지 (Online/Delivery) = 오른쪽
+    // ※ 'Cash' source는 현재 OrderSource 타입에 없으므로 'Kiosk'만 좌측으로 분류
+    const kioskOrders  = sorted.filter((o) => o.source === 'Kiosk');
+    const onlineOrders = sorted.filter((o) => o.source !== 'Kiosk');
+
+    return (
+      <div className="flex flex-col sm:flex-row h-full min-h-0 overflow-hidden no-print">
+        {/* 왼쪽: Kiosk / Cash */}
+        <div className="flex-1 flex flex-col min-h-0 border-b sm:border-b-0 sm:border-r border-border">
+          <ColumnHeader title="Kiosk / Cash" count={kioskOrders.length} />
+          <div className="flex-1 overflow-y-auto min-h-0">
+            {kioskOrders.length === 0
+              ? <EmptyState label="No Kiosk Orders" />
+              : kioskOrders.map((o) => (
+                  <ActiveOrderRow key={o.id} order={o} onUpdateStatus={onUpdateStatus} onPrint={onPrint} />
+                ))
+            }
+          </div>
+        </div>
+
+        {/* 오른쪽: Pickup / Delivery */}
+        <div className="flex-1 flex flex-col min-h-0">
+          <ColumnHeader title="Pickup / Delivery" count={onlineOrders.length} />
+          <div className="flex-1 overflow-y-auto min-h-0">
+            {onlineOrders.length === 0
+              ? <EmptyState label="No Pickup / Delivery Orders" />
+              : onlineOrders.map((o) => (
+                  <ActiveOrderRow key={o.id} order={o} onUpdateStatus={onUpdateStatus} onPrint={onPrint} />
+                ))
+            }
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Scheduled 탭 ──────────────────────────────────────────────────────────
+  if (activeTab === 'scheduled') {
+    const sorted = [...scheduledOrders].sort((a, b) =>
+      (a.pickupAt ?? '').localeCompare(b.pickupAt ?? '')
+    );
+
+    return (
+      <div className="flex flex-col h-full min-h-0 overflow-hidden no-print">
+        <div className="flex-1 overflow-y-auto min-h-0">
+          {sorted.length === 0
+            ? <EmptyState label="No Scheduled Orders" />
+            : sorted.map((o) => (
+                <IncomingOrderRow key={o.id} order={o} onUpdateStatus={onUpdateStatus} />
+              ))
+          }
+        </div>
+      </div>
+    );
+  }
+
+  // ── Ready·Done 탭 ─────────────────────────────────────────────────────────
+  const sortedReady = [...readyOrders].sort((a, b) =>
+    (a.readyAt ?? a.createdAt).localeCompare(b.readyAt ?? b.createdAt)
+  );
+  const sortedDone = [...completedOrders].sort((a, b) =>
+    (b.completedAt ?? b.createdAt).localeCompare(a.completedAt ?? a.createdAt)
+  );
 
   return (
-    <div className="flex h-full min-h-0 overflow-hidden no-print">
-
-      {/* ── 왼쪽 패널: 활성 주문 ──────────────────────── */}
-      <div className="flex-[65] border-r border-border min-w-0 flex flex-col min-h-0">
+    <div className="flex flex-col sm:flex-row h-full min-h-0 overflow-hidden no-print">
+      {/* 왼쪽: READY */}
+      <div className="flex-1 flex flex-col min-h-0 border-b sm:border-b-0 sm:border-r border-border">
+        <ColumnHeader title="Ready" count={sortedReady.length} />
         <div className="flex-1 overflow-y-auto min-h-0">
-          {sortedActive.length === 0
-            ? <EmptyState label="No Active Orders" />
-            : sortedActive.map((o) => (
-                <ActiveOrderRow key={o.id} order={o} onUpdateStatus={onUpdateStatus} onPrint={onPrint} />
+          {sortedReady.length === 0
+            ? <EmptyState label="No Ready Orders" />
+            : sortedReady.map((o) => (
+                <DoneOrderRow key={o.id} order={o} onUpdateStatus={onUpdateStatus} />
               ))
           }
         </div>
       </div>
 
-      {/* ── 오른쪽 패널 ───────────────────────────────────────── */}
-      <div className="flex-[35] overflow-y-auto min-w-0 flex flex-col">
-
-        {/* 상단: SCHEDULED (예약 대기 주문) */}
-        {scheduledOrders.length > 0 && (
-          <>
-            <SectionHeader title="SCHEDULED" />
-            {scheduledOrders.map((o) => (
-              <IncomingOrderRow key={o.id} order={o} onUpdateStatus={onUpdateStatus} />
-            ))}
-          </>
-        )}
-
-        {/* 중단: READY (픽업 대기) */}
-        {readyOrders.length > 0 && (
-          <>
-            <SectionHeader title="READY" />
-            {readyOrders.map((o) => (
-              <DoneOrderRow key={o.id} order={o} onUpdateStatus={onUpdateStatus} />
-            ))}
-          </>
-        )}
-
-        {/* 하단: COMPLETED */}
-        {completedOrders.length > 0 && (
-          <>
-            <SectionHeader title="COMPLETED" />
-            {completedOrders.map((o) => (
-              <DoneOrderRow key={o.id} order={o} onUpdateStatus={onUpdateStatus} />
-            ))}
-          </>
-        )}
-
-        {/* 아무것도 없을 때 */}
-        {scheduledOrders.length === 0 && readyOrders.length === 0 && completedOrders.length === 0 && (
-          <EmptyState label="No Orders" />
-        )}
+      {/* 오른쪽: COMPLETED */}
+      <div className="flex-1 flex flex-col min-h-0">
+        <ColumnHeader title="Done" count={sortedDone.length} />
+        <div className="flex-1 overflow-y-auto min-h-0">
+          {sortedDone.length === 0
+            ? <EmptyState label="No Completed Orders" />
+            : sortedDone.map((o) => (
+                <DoneOrderRow key={o.id} order={o} onUpdateStatus={onUpdateStatus} />
+              ))
+          }
+        </div>
       </div>
     </div>
   );

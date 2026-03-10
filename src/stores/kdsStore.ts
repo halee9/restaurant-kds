@@ -49,7 +49,7 @@ interface KDSState {
   setUrgencyRedMin: (v: number) => void;
 
   // 파생 상태
-  orderCounts: () => { active: number; scheduled: number; ready: number; done: number };
+  orderCounts: () => { active: number; scheduled: number; readyDone: number };
 }
 
 export const useKDSStore = create<KDSState>()((set, get) => ({
@@ -131,8 +131,7 @@ export const useKDSStore = create<KDSState>()((set, get) => ({
     return {
       active:    orders.filter((o) => (o.status === 'OPEN' && !o.isScheduled) || o.status === 'IN_PROGRESS').length,
       scheduled: orders.filter((o) => o.status === 'OPEN' && o.isScheduled).length,
-      ready:     orders.filter((o) => o.status === 'READY').length,
-      done:      orders.filter((o) => o.status === 'COMPLETED').length,
+      readyDone: orders.filter((o) => o.status === 'READY' || o.status === 'COMPLETED').length,
     };
   },
 }));

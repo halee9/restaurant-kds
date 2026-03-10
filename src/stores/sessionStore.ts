@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type KDSTab = 'active' | 'scheduled' | 'ready' | 'done';
+export type KDSTab = 'active' | 'scheduled' | 'ready-done';
 export type ViewMode = 'list' | 'card';
 
 interface SessionState {

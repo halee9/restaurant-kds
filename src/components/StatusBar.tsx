@@ -9,7 +9,7 @@ interface Props {
   restaurantName: string;
   activeTab: KDSTab;
   onTabChange: (tab: KDSTab) => void;
-  counts: { active: number; scheduled: number; ready: number; done: number };
+  counts: { active: number; scheduled: number; readyDone: number };
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
   onLogout: () => void;
@@ -39,7 +39,7 @@ export default function StatusBar({
         </span>
       </div>
 
-      {/* 4탭 */}
+      {/* 3탭 */}
       <div className="flex items-center gap-0.5">
         {/* Active */}
         <button onClick={() => onTabChange('active')} className={tabCls('active')}>
@@ -62,22 +62,12 @@ export default function StatusBar({
           )}
         </button>
 
-        {/* Ready */}
-        <button onClick={() => onTabChange('ready')} className={tabCls('ready')}>
-          Ready
-          {counts.ready > 0 && (
+        {/* Ready·Done */}
+        <button onClick={() => onTabChange('ready-done')} className={tabCls('ready-done')}>
+          Ready·Done
+          {counts.readyDone > 0 && (
             <Badge variant="outline" className="h-5 px-1.5 text-xs border-green-500 text-green-400">
-              {counts.ready}
-            </Badge>
-          )}
-        </button>
-
-        {/* Done */}
-        <button onClick={() => onTabChange('done')} className={tabCls('done')}>
-          Done
-          {counts.done > 0 && (
-            <Badge variant={activeTab === 'done' ? 'default' : 'secondary'} className="h-5 px-1.5 text-xs">
-              {counts.done}
+              {counts.readyDone}
             </Badge>
           )}
         </button>

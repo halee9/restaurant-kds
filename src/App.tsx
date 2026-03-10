@@ -230,36 +230,44 @@ function KDSApp() {
           />
         ) : (
           // ── 카드 뷰 ─────────────────────────────────────────────────────────
-          <div className="px-4 pb-4 pt-2 h-full overflow-auto">
+          <div className="h-full overflow-hidden flex flex-col">
             {activeTab === 'active' && (
-              <ActiveTabView
-                orders={activeOrders}
-                onUpdateStatus={handleUpdateStatus}
-                onPrint={handlePrint}
-              />
+              <div className="flex-1 overflow-auto px-4 pb-4 pt-2">
+                <ActiveTabView
+                  orders={activeOrders}
+                  onUpdateStatus={handleUpdateStatus}
+                  onPrint={handlePrint}
+                />
+              </div>
             )}
             {activeTab === 'scheduled' && (
-              <ScheduledTabView
-                orders={scheduledOrders}
-                now={now}
-                scheduledActivationMinutes={scheduledActivationMinutes}
-                onUpdateStatus={handleUpdateStatus}
-                onPrint={handlePrint}
-              />
+              <div className="flex-1 overflow-auto px-4 pb-4 pt-2">
+                <ScheduledTabView
+                  orders={scheduledOrders}
+                  now={now}
+                  scheduledActivationMinutes={scheduledActivationMinutes}
+                  onUpdateStatus={handleUpdateStatus}
+                  onPrint={handlePrint}
+                />
+              </div>
             )}
-            {activeTab === 'ready' && (
-              <ReadyTabView
-                orders={readyOrders}
-                onUpdateStatus={handleUpdateStatus}
-                onPrint={handlePrint}
-              />
-            )}
-            {activeTab === 'done' && (
-              <DoneTabView
-                orders={completedOrders}
-                onUpdateStatus={handleUpdateStatus}
-                onPrint={handlePrint}
-              />
+            {activeTab === 'ready-done' && (
+              <div className="flex-1 flex flex-col sm:flex-row overflow-hidden">
+                <div className="flex-1 overflow-auto px-4 pb-4 pt-2 border-b sm:border-b-0 sm:border-r border-border">
+                  <ReadyTabView
+                    orders={readyOrders}
+                    onUpdateStatus={handleUpdateStatus}
+                    onPrint={handlePrint}
+                  />
+                </div>
+                <div className="flex-1 overflow-auto px-4 pb-4 pt-2">
+                  <DoneTabView
+                    orders={completedOrders}
+                    onUpdateStatus={handleUpdateStatus}
+                    onPrint={handlePrint}
+                  />
+                </div>
+              </div>
             )}
           </div>
         )}
