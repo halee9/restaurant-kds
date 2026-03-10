@@ -163,16 +163,17 @@ function ActiveOrderRow({
   // - READY/COMPLETED: startedAt → readyAt 고정 소요시간 (prep 완료 후 정지)
   // - OPEN/IN_PROGRESS: startedAt → 지금(live)
   const startIso = order.startedAt ?? order.createdAt;
-  const isFinished = (order.status === 'READY' || order.status === 'COMPLETED') && !!order.readyAt;
+  const isFinished = order.status === 'READY' || order.status === 'COMPLETED';
+  const endIso = order.readyAt ?? order.updatedAt;  // readyAt 없으면 updatedAt 폴백
   const urgencyMins = isFinished
-    ? Math.max(0, Math.floor((new Date(order.readyAt!).getTime() - new Date(startIso).getTime()) / 60000))
+    ? Math.max(0, Math.floor((new Date(endIso).getTime() - new Date(startIso).getTime()) / 60000))
     : getElapsedMinutes(startIso);
   const urgency: Urgency =
     urgencyMins >= urgencyRedMin    ? 3 :
     urgencyMins >= urgencyOrangeMin ? 2 :
     urgencyMins >= urgencyYellowMin ? 1 : 0;
   const timeLabel = isFinished
-    ? formatDuration(startIso, order.readyAt!)
+    ? formatDuration(startIso, endIso)
     : formatElapsed(startIso);
 
   // 아이템별 완료 카운트 (로컬) — idx → 완료된 수량
