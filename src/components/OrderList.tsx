@@ -1,9 +1,10 @@
 import React from 'react';
-import { CornerUpLeft, Printer, Check, Info, X } from 'lucide-react';
+import { CornerUpLeft, Printer, Check, Info } from 'lucide-react';
 import type { KDSOrder, OrderStatus } from '../types';
 import { getItemDisplay, getModifierDisplay, mergeLineItems, formatElapsed, formatDuration, getElapsedMinutes } from '../utils';
 import { useKDSStore } from '../stores/kdsStore';
 import { useSessionStore } from '../stores/sessionStore';
+import OrderTicketModal from './OrderTicketModal';
 
 // ── 경과 시간 긴급도 ───────────────────────────────────────────────────────
 type Urgency = 0 | 1 | 2 | 3;
@@ -62,82 +63,6 @@ function prevStatus(status: OrderStatus): OrderStatus | null {
   if (status === 'READY')       return 'IN_PROGRESS';
   if (status === 'COMPLETED')   return 'READY';
   return null;
-}
-
-// ── 주문 상세 모달 ────────────────────────────────────────────────────────────
-function OrderInfoModal({ order, onClose }: { order: KDSOrder; onClose: () => void }) {
-  const fmt = (iso: string) =>
-    new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 no-print"
-      onClick={onClose}
-    >
-      <div
-        className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-sm mx-4 p-5"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* 헤더 */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="text-2xl font-black text-foreground shrink-0">#{order.displayId}</span>
-            <span className="text-lg font-semibold text-blue-300 truncate">{order.displayName}</span>
-          </div>
-          <button onClick={onClose} className="opacity-50 hover:opacity-100 ml-2 shrink-0">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* 소스 · 상태 · 예약 시간 */}
-        <div className="flex items-center gap-2 flex-wrap mb-3">
-          <span className="text-xs font-bold px-2 py-0.5 rounded bg-muted text-muted-foreground">
-            {order.source}
-          </span>
-          <span className="text-xs font-bold text-muted-foreground">{order.status}</span>
-          {order.isScheduled && order.pickupAt && (
-            <span className="text-xs font-bold text-yellow-400">
-              📅 {new Date(order.pickupAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </span>
-          )}
-        </div>
-
-        {/* 아이템 목록 (전체 — KDS 필터 없음) */}
-        <div className="bg-muted/30 rounded-lg px-3 py-2 mb-3 space-y-1 max-h-48 overflow-y-auto">
-          {mergeLineItems(order.lineItems).map((item, idx) => (
-            <div key={idx} className="text-sm">
-              <span className="font-semibold text-foreground">
-                ×{item.quantity} {item.name}
-              </span>
-              {item.variationName && (
-                <span className="text-muted-foreground ml-1">({item.variationName})</span>
-              )}
-              {item.modifiers && item.modifiers.length > 0 && (
-                <div className="text-xs text-muted-foreground ml-3">
-                  {item.modifiers.join(', ')}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* 메모 */}
-        {order.note && (
-          <div className="text-sm bg-yellow-900/40 text-yellow-200 border border-yellow-700/40 rounded px-2 py-1 italic mb-3">
-            ★ {order.note}
-          </div>
-        )}
-
-        {/* 타임스탬프 */}
-        <div className="text-xs text-muted-foreground space-y-0.5">
-          <div>Ordered: {fmt(order.createdAt)}</div>
-          {order.startedAt  && <div>Started:  {fmt(order.startedAt)}</div>}
-          {order.readyAt    && <div>Ready:    {fmt(order.readyAt)}</div>}
-          {order.completedAt && <div>Done:    {fmt(order.completedAt)}</div>}
-        </div>
-      </div>
-    </div>
-  );
 }
 
 // ── 왼쪽 패널: 활성(IN_PROGRESS) 주문 큰 행 ──────────────────────────────────
@@ -315,8 +240,8 @@ function ActiveOrderRow({
         )}
       </div>
 
-      {/* 주문 상세 모달 */}
-      {infoOpen && <OrderInfoModal order={order} onClose={() => setInfoOpen(false)} />}
+      {/* 주문 티켓 모달 */}
+      {infoOpen && <OrderTicketModal order={order} onClose={() => setInfoOpen(false)} />}
 
       {/* 소스 · 고객 · 시간 · 프린트 · 정보 · 되돌리기 — 우측 상단 floating */}
       <div className="absolute top-1.5 right-1.5 flex items-center gap-2 pointer-events-none">
