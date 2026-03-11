@@ -1,7 +1,7 @@
 import QRCode from 'react-qr-code';
 import { X, XCircle } from 'lucide-react';
 import type { KDSOrder, MenuDisplayItem, ModifierDisplayItem } from '../types';
-import { formatMoney, formatDateTime, getItemDisplay, getModifierDisplay } from '../utils';
+import { formatMoney, formatDateTime, getItemDisplay, getModifierDisplay, normalizeMod } from '../utils';
 import { useKDSStore } from '../stores/kdsStore';
 import { PrintAllItemsButton } from './ItemLabelPrinter';
 
@@ -29,7 +29,7 @@ export function TicketContent({ order, menuItems, modifiers: modifierList }: {
     (item.modifiers ?? []).forEach((mod) => {
       const md = getModifierDisplay(mod, modifierList);
       if (md.serverAlert) {
-        alertMap.set(md.label, (alertMap.get(md.label) ?? 0) + 1);
+        alertMap.set(md.label, (alertMap.get(md.label) ?? 0) + md.qty);
       }
     });
   });
@@ -72,9 +72,15 @@ export function TicketContent({ order, menuItems, modifiers: modifierList }: {
             {item.variationName && (
               <div className="ml-3 text-xs text-gray-700">{item.variationName}</div>
             )}
-            {item.modifiers?.map((m, i) => (
-              <div key={i} className="ml-3 text-xs text-gray-700">{m}</div>
-            ))}
+            {item.modifiers?.map((m, i) => {
+              const mod = normalizeMod(m);
+              return (
+                <div key={i} className="ml-3 text-xs text-gray-700 flex justify-between">
+                  <span>{mod.qty > 1 ? `${mod.qty}× ` : ''}{mod.name}</span>
+                  {mod.price > 0 && <span className="shrink-0">{formatMoney(mod.price * mod.qty)}</span>}
+                </div>
+              );
+            })}
           </div>
         ))}
       </div>

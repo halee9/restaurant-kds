@@ -1,4 +1,4 @@
-export type OrderSource = 'Kiosk' | 'DoorDash' | 'Uber Eats' | 'Grubhub' | 'Square Online' | 'Unknown';
+export type OrderSource = 'Kiosk' | 'Online' | 'DoorDash' | 'Uber Eats' | 'Grubhub' | 'Square Online' | 'Unknown';
 
 // ─── Menu Display ─────────────────────────────────────────────────────────────
 
@@ -33,11 +33,17 @@ export interface MenuDisplayConfig {
 
 export type OrderStatus = 'OPEN' | 'IN_PROGRESS' | 'READY' | 'COMPLETED' | 'CANCELED';
 
+export interface OrderModifier {
+  name: string;
+  qty: number;
+  price: number; // cents (modifier 단가)
+}
+
 export interface OrderLineItem {
   name: string;
   quantity: string;
   variationName?: string;
-  modifiers?: string[];
+  modifiers?: OrderModifier[];
   totalMoney: number; // cents
 }
 

@@ -1,4 +1,4 @@
-import type { OrderSource, MenuDisplayItem, ModifierDisplayItem, OrderLineItem } from './types';
+import type { OrderSource, OrderModifier, MenuDisplayItem, ModifierDisplayItem, OrderLineItem } from './types';
 
 export function formatMoney(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
@@ -47,6 +47,7 @@ export function detectSource(squareSourceName?: string): OrderSource {
   if (name.includes('uber')) return 'Uber Eats';
   if (name.includes('grubhub')) return 'Grubhub';
   if (name.includes('square online') || name.includes('online store')) return 'Square Online';
+  if (name === 'online') return 'Online';
   if (name.includes('kiosk') || name.includes('point of sale') || name.includes('pos')) return 'Kiosk';
   return 'Unknown';
 }
@@ -70,20 +71,33 @@ export function getItemDisplay(
   };
 }
 
+/** modifier를 정규화: string → { name, qty: 1, price: 0 }, object → 그대로 */
+export function normalizeMod(mod: any): OrderModifier {
+  if (typeof mod === 'string') return { name: mod, qty: 1, price: 0 };
+  return {
+    name: mod?.name ?? String(mod ?? ''),
+    qty: mod?.qty ?? mod?.quantity ?? 1,
+    price: Number(mod?.price ?? 0),
+  };
+}
+
 /** 모디파이어: 약어 + 색상 + KDS 표시 여부 + 서버 경고 반환 */
 export function getModifierDisplay(
-  modifierName: string,
+  mod: OrderModifier | string | any,
   modifierDisplay: ModifierDisplayItem[]
-): { label: string; bgColor: string; textColor: string; showOnKds: boolean; serverAlert: boolean } {
+): { label: string; bgColor: string; textColor: string; showOnKds: boolean; serverAlert: boolean; qty: number; price: number } {
+  const { name, qty, price } = normalizeMod(mod);
   const config = modifierDisplay.find(
-    (m) => m.modifier_name.toLowerCase().trim() === modifierName.toLowerCase().trim()
+    (m) => m.modifier_name.toLowerCase().trim() === name.toLowerCase().trim()
   );
   return {
-    label:       config?.abbreviation || modifierName,
+    label:       config?.abbreviation || name,
     bgColor:     config?.bg_color     || '',
     textColor:   config?.text_color   || '',
     showOnKds:   config?.show_on_kds  ?? true,
     serverAlert: config?.server_alert ?? false,
+    qty,
+    price,
   };
 }
 
@@ -95,8 +109,9 @@ export function mergeLineItems(items: OrderLineItem[]): OrderLineItem[] {
   const map = new Map<string, OrderLineItem>();
 
   for (const item of items) {
-    // 모디파이어는 정렬해서 순서 차이를 무시
-    const modKey = [...(item.modifiers ?? [])].sort().join('\x00');
+    // 모디파이어는 name+qty로 키 생성, 정렬해서 순서 차이를 무시
+    const mods = (item.modifiers ?? []).map(normalizeMod);
+    const modKey = [...mods].sort((a, b) => a.name.localeCompare(b.name)).map((m) => `${m.name}:${m.qty}`).join('\x00');
     const key = `${item.name}\x00${item.variationName ?? ''}\x00${modKey}`;
 
     const existing = map.get(key);
@@ -116,6 +131,7 @@ export function mergeLineItems(items: OrderLineItem[]): OrderLineItem[] {
 
 export const SOURCE_COLORS: Record<OrderSource, string> = {
   'Kiosk': 'bg-blue-600',
+  'Online': 'bg-teal-600',
   'DoorDash': 'bg-red-600',
   'Uber Eats': 'bg-green-600',
   'Grubhub': 'bg-orange-500',

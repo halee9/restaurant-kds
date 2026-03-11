@@ -17,6 +17,7 @@ const SOURCE_VARIANT: Record<string, string> = {
   'Uber Eats':    'bg-green-700 text-white hover:bg-green-700',
   'Grubhub':      'bg-orange-500 text-white hover:bg-orange-500',
   'Square Online':'bg-purple-600 text-white hover:bg-purple-600',
+  'Online':       'bg-teal-600 text-white hover:bg-teal-600',
   'Kiosk':        'bg-blue-600 text-white hover:bg-blue-600',
   'Unknown':      'bg-muted text-muted-foreground',
 };
@@ -106,6 +107,7 @@ export default function OrderCard({ order, onUpdateStatus, onPrint }: Props) {
                 if (!modDisplay.showOnKds) return null;
                 return (
                   <span key={mIdx} className="text-base bg-muted px-2 py-0.5 rounded text-muted-foreground flex items-center gap-1">
+                    {modDisplay.qty > 1 && <span className="font-bold">{modDisplay.qty}×</span>}
                     {modDisplay.label}
                     {modDisplay.serverAlert && (
                       <AlertTriangle className="h-3 w-3 text-red-400" />

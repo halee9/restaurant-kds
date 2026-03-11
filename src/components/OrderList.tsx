@@ -38,6 +38,7 @@ const SOURCE_VARIANT: Record<string, string> = {
   'Uber Eats':     'bg-green-700 text-white',
   'Grubhub':       'bg-orange-500 text-white',
   'Square Online': 'bg-purple-600 text-white',
+  'Online':        'bg-teal-600 text-white',
   'Kiosk':         'bg-blue-600 text-white',
   'Unknown':       'bg-muted text-muted-foreground',
 };
@@ -226,6 +227,7 @@ function ActiveOrderRow({
                       : undefined
                     }
                   >
+                    {modDisplay.qty > 1 && <span className="font-bold">{modDisplay.qty}×</span>}
                     {modDisplay.label}
                   </span>
                 );
