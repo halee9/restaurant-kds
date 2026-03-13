@@ -7,6 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import type { RestaurantConfig } from './AdminPage';
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
+const ONLINE_STORE_URL = import.meta.env.VITE_ONLINE_STORE_URL || 'https://restaurant-online-seven.vercel.app';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -265,7 +266,7 @@ export default function OnlineStoreEditor({ config, pin, onSaved }: Props) {
       {/* Preview Link */}
       <div className="text-center">
         <a
-          href={`/${config.restaurant_code.toLowerCase()}`}
+          href={`${ONLINE_STORE_URL}/${config.restaurant_code.toLowerCase()}`}
           target="_blank"
           rel="noopener noreferrer"
           className="text-sm text-primary hover:underline"
