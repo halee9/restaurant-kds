@@ -101,7 +101,7 @@ export default function StatusBar({
           {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
         </span>
         <Separator orientation="vertical" className="h-5 hidden sm:block" />
-        <Button variant="ghost" size="sm" onClick={onSettings} className="h-8 px-2 text-muted-foreground" title="KDS Settings">
+        <Button variant="ghost" size="sm" onClick={onSettings} className="h-8 px-2 text-muted-foreground" title="POS Settings">
           <Settings className="h-5 w-5" />
         </Button>
         <Separator orientation="vertical" className="h-5" />

@@ -54,7 +54,7 @@ export function detectSource(squareSourceName?: string): OrderSource {
 
 // ─── Menu Display 유틸 ───────────────────────────────────────────────────────
 
-/** 메뉴 항목: 약어 + 배경색/글씨색 + KDS 표시 여부 + 서버 경고 반환 */
+/** 메뉴 항목: 약어 + 배경색/글씨색 + POS 표시 여부 + 서버 경고 반환 */
 export function getItemDisplay(
   itemName: string,
   menuDisplay: MenuDisplayItem[]
@@ -81,7 +81,7 @@ export function normalizeMod(mod: any): OrderModifier {
   };
 }
 
-/** 모디파이어: 약어 + 색상 + KDS 표시 여부 + 서버 경고 반환 */
+/** 모디파이어: 약어 + 색상 + POS 표시 여부 + 서버 경고 반환 */
 export function getModifierDisplay(
   mod: OrderModifier | string | any,
   modifierDisplay: ModifierDisplayItem[]

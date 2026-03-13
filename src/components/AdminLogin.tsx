@@ -92,7 +92,7 @@ export default function AdminLogin({ onLogin }: Props) {
           </form>
 
           <p className="text-center text-xs text-muted-foreground mt-6">
-            <a href="/" className="hover:text-foreground transition-colors">← Back to KDS</a>
+            <a href="/" className="hover:text-foreground transition-colors">← Back to POS</a>
           </p>
         </CardContent>
       </Card>

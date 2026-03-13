@@ -7,7 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import type { RestaurantConfig } from './AdminPage';
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
-const ONLINE_STORE_URL = import.meta.env.VITE_ONLINE_STORE_URL || 'https://restaurant-online-seven.vercel.app';
+const ONLINE_STORE_URL = import.meta.env.VITE_ONLINE_STORE_URL || 'https://order.ziggl.app';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 

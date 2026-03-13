@@ -29,7 +29,7 @@ interface Props {
 export default function AdminDashboard({ config, pin, onSaved, onLogout }: Props) {
   const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
   const [activeTab, setActiveTab] = useState<TabKey>('settings');
-  // KDS 런타임 설정은 KDS 화면 내 ⚙ 패널에서 관리
+  // POS 런타임 설정은 POS 화면 내 ⚙ 패널에서 관리
 
   const [logoStyle, setLogoStyle] = useState(config.logo_style ?? 'mono');
   const [name, setName] = useState(config.name);
@@ -104,7 +104,7 @@ export default function AdminDashboard({ config, pin, onSaved, onLogout }: Props
           <p className="text-xs text-muted-foreground mt-0.5">{config.restaurant_code.toUpperCase()} · {config.name}</p>
         </div>
         <div className="flex items-center gap-4">
-          <a href="/" className="text-xs text-muted-foreground hover:text-foreground transition-colors">← KDS</a>
+          <a href="/" className="text-xs text-muted-foreground hover:text-foreground transition-colors">← POS</a>
           <Button variant="ghost" size="sm" onClick={onLogout} className="text-xs">Logout</Button>
         </div>
       </div>
@@ -252,7 +252,7 @@ export default function AdminDashboard({ config, pin, onSaved, onLogout }: Props
             </CardContent>
           </Card>
 
-          {/* KDS Settings — KDS 화면의 ⚙ 아이콘으로 이동됨 */}
+          {/* POS Settings — POS 화면의 ⚙ 아이콘으로 이동됨 */}
 
           <Separator />
 

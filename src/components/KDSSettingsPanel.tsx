@@ -72,7 +72,7 @@ export default function KDSSettingsPanel({ open, onClose }: Props) {
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <span className="font-bold text-base">KDS Settings</span>
+          <span className="font-bold text-base">POS Settings</span>
           <button
             onClick={onClose}
             className="opacity-50 hover:opacity-100 transition-opacity"

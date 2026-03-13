@@ -164,7 +164,7 @@ export default function MenuDisplayEditor({ restaurantCode, pin }: Props) {
       <Card>
         <CardHeader>
           <CardTitle className="text-sm uppercase tracking-wider">Menu Items</CardTitle>
-          <p className="text-xs text-muted-foreground">약어와 배경색/글씨색을 설정하면 KDS에 적용됩니다. 비워두면 원래 이름과 기본 색상이 사용됩니다.</p>
+          <p className="text-xs text-muted-foreground">약어와 배경색/글씨색을 설정하면 POS에 적용됩니다. 비워두면 원래 이름과 기본 색상이 사용됩니다.</p>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {squareItems.length === 0 ? (
@@ -225,7 +225,7 @@ export default function MenuDisplayEditor({ restaurantCode, pin }: Props) {
                       className="h-6 w-20 text-xs"
                     />
                   </div>
-                  {/* 토글: Show on KDS / Server Alert */}
+                  {/* 토글: Show on POS / Server Alert */}
                   <div className="flex items-center gap-4 flex-wrap pl-1">
                     <label className="flex items-center gap-1.5 cursor-pointer">
                       <input
@@ -234,7 +234,7 @@ export default function MenuDisplayEditor({ restaurantCode, pin }: Props) {
                         onChange={(e) => updateMenuItem(item.name, 'show_on_kds', e.target.checked)}
                         className="w-3.5 h-3.5"
                       />
-                      <span className="text-xs text-muted-foreground">Show on KDS</span>
+                      <span className="text-xs text-muted-foreground">Show on POS</span>
                     </label>
                     <label className="flex items-center gap-1.5 cursor-pointer">
                       <input
@@ -257,7 +257,7 @@ export default function MenuDisplayEditor({ restaurantCode, pin }: Props) {
       <Card>
         <CardHeader>
           <CardTitle className="text-sm uppercase tracking-wider">Modifiers / Options</CardTitle>
-          <p className="text-xs text-muted-foreground">약어와 배경색/글씨색을 설정하면 KDS 배지에 적용됩니다. 색상 미설정 시 기본 흰색 배지가 사용됩니다.</p>
+          <p className="text-xs text-muted-foreground">약어와 배경색/글씨색을 설정하면 POS 배지에 적용됩니다. 색상 미설정 시 기본 흰색 배지가 사용됩니다.</p>
         </CardHeader>
         <CardContent>
           {allModifiers.length === 0 ? (
@@ -271,7 +271,7 @@ export default function MenuDisplayEditor({ restaurantCode, pin }: Props) {
                   <div key={mod.id} className="flex flex-col gap-2 border border-border rounded-md px-2 py-1.5">
                     {/* 상단 행: 미리보기 · 이름 · 약어 입력 · 토글 */}
                     <div className="flex items-center gap-2 flex-wrap">
-                      {/* 미리보기 배지 — 아웃라인 스타일 (KDS와 동일) */}
+                      {/* 미리보기 배지 — 아웃라인 스타일 (POS와 동일) */}
                       <span
                         className="px-2 py-0.5 rounded font-bold text-xs min-w-[2.5rem] text-center shrink-0 border bg-transparent"
                         style={cfg.bg_color
@@ -294,7 +294,7 @@ export default function MenuDisplayEditor({ restaurantCode, pin }: Props) {
                           className="h-7 w-20 text-xs"
                         />
                       </div>
-                      {/* 토글: Show on KDS / Server Alert */}
+                      {/* 토글: Show on POS / Server Alert */}
                       <label className="flex items-center gap-1 cursor-pointer shrink-0">
                         <input
                           type="checkbox"
@@ -302,7 +302,7 @@ export default function MenuDisplayEditor({ restaurantCode, pin }: Props) {
                           onChange={(e) => updateModifierField(mod.name, 'show_on_kds', e.target.checked)}
                           className="w-3.5 h-3.5"
                         />
-                        <span className="text-xs text-muted-foreground">KDS</span>
+                        <span className="text-xs text-muted-foreground">POS</span>
                       </label>
                       <label className="flex items-center gap-1 cursor-pointer shrink-0">
                         <input
