@@ -13,7 +13,29 @@ export interface RestaurantConfig {
   settings_pin: string;
   enable_tipping: boolean;
   session_timeout_minutes: number;
-  logo_style?: string; // 영수증 페이지 로고 템플릿
+  logo_style?: string;
+  // ── Online Store / Landing Page ──
+  timezone?: string;
+  hours?: { open: string; close: string; days: number[] } | null;
+  theme?: {
+    primaryColor: string;
+    accentColor?: string;
+    bgColor?: string;
+    textColor?: string;
+    logoUrl?: string;
+    heroImageUrl?: string;
+    fontFamily?: string;
+  } | null;
+  enable_landing?: boolean;
+  description?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  social_links?: {
+    instagram?: string;
+    facebook?: string;
+    yelp?: string;
+    google_maps?: string;
+  } | null;
 }
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';

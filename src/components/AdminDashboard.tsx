@@ -6,8 +6,9 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import type { RestaurantConfig } from './AdminPage';
 import MenuDisplayEditor from './MenuDisplayEditor';
+import OnlineStoreEditor from './OnlineStoreEditor';
 
-type TabKey = 'settings' | 'menu-display';
+type TabKey = 'settings' | 'menu-display' | 'online-store';
 
 const LOGO_OPTIONS = [
   { key: 'ginkgo', label: 'Ginkgo',   emoji: '🌿', bg: '#14532d', desc: 'Japanese ginkgo leaf'    },
@@ -114,6 +115,7 @@ export default function AdminDashboard({ config, pin, onSaved, onLogout }: Props
           {([
             { key: 'settings', label: '⚙️ Settings' },
             { key: 'menu-display', label: '🎨 Menu Display' },
+            { key: 'online-store', label: '🏪 Online Store' },
           ] as { key: TabKey; label: string }[]).map(({ key, label }) => (
             <button
               key={key}
@@ -131,6 +133,11 @@ export default function AdminDashboard({ config, pin, onSaved, onLogout }: Props
       </div>
 
       <div className="max-w-xl mx-auto px-6 py-8">
+
+        {/* Online Store 탭 */}
+        {activeTab === 'online-store' && (
+          <OnlineStoreEditor config={config} pin={pin} onSaved={onSaved} />
+        )}
 
         {/* Menu Display 탭 */}
         {activeTab === 'menu-display' && (
