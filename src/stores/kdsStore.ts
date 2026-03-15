@@ -5,6 +5,8 @@ const ACTIVATION_KEY = 'kds_activation_minutes';
 const DEFAULT_ACTIVATION = 20;
 const AUTO_START_KEY = 'kds_auto_start';
 const AUTO_PRINT_KEY = 'kds_auto_print';
+const SOUND_ENABLED_KEY = 'kds_sound_enabled';
+const SOUND_VOLUME_KEY  = 'kds_sound_volume';
 
 // 긴급도 임계값 (분)
 const URGENCY_YELLOW_KEY = 'kds_urgency_yellow';
@@ -26,6 +28,10 @@ interface KDSState {
   autoStartOrders: boolean;
   autoPrint: boolean;
 
+  // 알림 사운드
+  soundEnabled: boolean;
+  soundVolume: number; // 0–100
+
   // 긴급도 색상 임계값 (분)
   urgencyYellowMin: number;
   urgencyOrangeMin: number;
@@ -44,12 +50,14 @@ interface KDSState {
   setScheduledActivationMinutes: (minutes: number) => void;
   setAutoStartOrders: (v: boolean) => void;
   setAutoPrint: (v: boolean) => void;
+  setSoundEnabled: (v: boolean) => void;
+  setSoundVolume: (v: number) => void;
   setUrgencyYellowMin: (v: number) => void;
   setUrgencyOrangeMin: (v: number) => void;
   setUrgencyRedMin: (v: number) => void;
 
   // 파생 상태
-  orderCounts: () => { active: number; scheduled: number; readyDone: number };
+  orderCounts: () => { pendingPayment: number; active: number; scheduled: number; readyDone: number };
 }
 
 export const useKDSStore = create<KDSState>()((set, get) => ({
@@ -60,6 +68,8 @@ export const useKDSStore = create<KDSState>()((set, get) => ({
   scheduledActivationMinutes: parseInt(localStorage.getItem(ACTIVATION_KEY) ?? String(DEFAULT_ACTIVATION)),
   autoStartOrders: localStorage.getItem(AUTO_START_KEY) !== 'false',
   autoPrint: localStorage.getItem(AUTO_PRINT_KEY) === 'true',
+  soundEnabled: localStorage.getItem(SOUND_ENABLED_KEY) !== 'false', // default true
+  soundVolume: parseInt(localStorage.getItem(SOUND_VOLUME_KEY) ?? '80'),
   urgencyYellowMin: parseInt(localStorage.getItem(URGENCY_YELLOW_KEY) ?? String(DEFAULT_URGENCY_YELLOW)),
   urgencyOrangeMin: parseInt(localStorage.getItem(URGENCY_ORANGE_KEY) ?? String(DEFAULT_URGENCY_ORANGE)),
   urgencyRedMin:    parseInt(localStorage.getItem(URGENCY_RED_KEY)    ?? String(DEFAULT_URGENCY_RED)),
@@ -113,6 +123,16 @@ export const useKDSStore = create<KDSState>()((set, get) => ({
     set({ autoPrint: v });
   },
 
+  setSoundEnabled: (v) => {
+    localStorage.setItem(SOUND_ENABLED_KEY, String(v));
+    set({ soundEnabled: v });
+  },
+
+  setSoundVolume: (v) => {
+    localStorage.setItem(SOUND_VOLUME_KEY, String(v));
+    set({ soundVolume: v });
+  },
+
   setUrgencyYellowMin: (v) => {
     localStorage.setItem(URGENCY_YELLOW_KEY, String(v));
     set({ urgencyYellowMin: v });
@@ -129,9 +149,11 @@ export const useKDSStore = create<KDSState>()((set, get) => ({
   orderCounts: () => {
     const { orders } = get();
     return {
+      pendingPayment: orders.filter((o) => o.status === 'PENDING_PAYMENT').length,
       active:    orders.filter((o) => (o.status === 'OPEN' && !o.isScheduled) || o.status === 'IN_PROGRESS').length,
       scheduled: orders.filter((o) => o.status === 'OPEN' && o.isScheduled).length,
-      readyDone: orders.filter((o) => o.status === 'READY' || o.status === 'COMPLETED').length,
+      // READY만 표시 (COMPLETED는 제외 — 실질적으로 중요한 건 READY)
+      readyDone: orders.filter((o) => o.status === 'READY').length,
     };
   },
 }));

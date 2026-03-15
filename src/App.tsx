@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { socket } from './socket';
 import type { KDSOrder } from './types';
 import { useKDSStore } from './stores/kdsStore';
 import { useSessionStore } from './stores/sessionStore';
+import { canAccess, DEFAULT_ROUTE } from './utils/roles';
 import StatusBar from './components/StatusBar';
 import OrderList from './components/OrderList';
 import SilentPrintTicket from './components/SilentPrintTicket';
@@ -14,27 +15,137 @@ import ActiveTabView from './components/ActiveTabView';
 import ScheduledTabView from './components/ScheduledTabView';
 import ReadyTabView from './components/ReadyTabView';
 import DoneTabView from './components/DoneTabView';
+import Layout from './components/Layout';
+import OrdersScreen from './screens/OrdersScreen';
+import DashboardScreen from './screens/DashboardScreen';
+import DisplayScreen from './screens/DisplayScreen';
+import HomeScreen from './screens/HomeScreen';
+import ClockScreen from './screens/ClockScreen';
+import CashManagementScreen from './screens/CashManagementScreen';
+import { playOrderNotification } from './utils/sounds';
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
 
-function KDSApp() {
-  const { restaurantCode, restaurantName, login, logout, activeTab, setActiveTab, viewMode, setViewMode } = useSessionStore();
+// ── Kitchen (KDS) 화면 ──────────────────────────────────────────────────────
+function KitchenScreen({ onUpdateStatus, onPrint, printQueue, setPrintQueue, now, onConfirmCash, onRejectCash }: {
+  onUpdateStatus: (id: string, status: KDSOrder['status']) => Promise<void>;
+  onPrint: (order: KDSOrder) => void;
+  printQueue: KDSOrder[];
+  setPrintQueue: React.Dispatch<React.SetStateAction<KDSOrder[]>>;
+  now: number;
+  onConfirmCash: (id: string) => Promise<void>;
+  onRejectCash: (id: string) => Promise<void>;
+}) {
+  const { restaurantName, activeTab, setActiveTab, viewMode, setViewMode } = useSessionStore();
+  const { connected, orders, scheduledActivationMinutes, orderCounts } = useKDSStore();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const activeOrders    = orders.filter((o) => o.status === 'PENDING_PAYMENT' || (o.status === 'OPEN' && !o.isScheduled) || o.status === 'IN_PROGRESS');
+  const scheduledOrders = orders.filter((o) => o.status === 'OPEN' && o.isScheduled);
+  const readyOrders     = orders.filter((o) => o.status === 'READY');
+  const completedOrders = orders.filter((o) => o.status === 'COMPLETED');
+
+  const counts = orderCounts();
+
+  return (
+    <div className="h-full flex flex-col bg-background overflow-hidden font-kds">
+      {/* 프린트 큐 */}
+      {printQueue.length > 0 && (
+        <SilentPrintTicket
+          order={printQueue[0]}
+          onDone={() => setPrintQueue((q) => q.slice(1))}
+        />
+      )}
+
+      <KDSSettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+
+      <StatusBar
+        connected={connected}
+        restaurantName={restaurantName}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        counts={counts}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        onSettings={() => setSettingsOpen(true)}
+      />
+
+      <div className={`flex-1 min-h-0 ${viewMode === 'list' ? 'overflow-hidden' : 'overflow-auto'}`}>
+        {viewMode === 'list' ? (
+          <OrderList
+            activeOrders={activeOrders}
+            scheduledOrders={scheduledOrders}
+            readyOrders={readyOrders}
+            completedOrders={completedOrders}
+            onUpdateStatus={onUpdateStatus}
+            onPrint={onPrint}
+            onConfirmCash={onConfirmCash}
+            onRejectCash={onRejectCash}
+          />
+        ) : (
+          <div className="h-full overflow-hidden flex flex-col">
+            {activeTab === 'active' && (
+              <div className="flex-1 overflow-auto px-4 pb-4 pt-2">
+                <ActiveTabView orders={activeOrders} onUpdateStatus={onUpdateStatus} onPrint={onPrint} onConfirmCash={onConfirmCash} onRejectCash={onRejectCash} />
+              </div>
+            )}
+            {activeTab === 'scheduled' && (
+              <div className="flex-1 overflow-auto px-4 pb-4 pt-2">
+                <ScheduledTabView
+                  orders={scheduledOrders}
+                  now={now}
+                  scheduledActivationMinutes={scheduledActivationMinutes}
+                  onUpdateStatus={onUpdateStatus}
+                  onPrint={onPrint}
+                />
+              </div>
+            )}
+            {activeTab === 'ready-done' && (
+              <div className="flex-1 flex flex-col sm:flex-row overflow-hidden">
+                <div className="flex-1 overflow-auto px-4 pb-4 pt-2 border-b sm:border-b-0 sm:border-r border-border">
+                  <ReadyTabView orders={readyOrders} onUpdateStatus={onUpdateStatus} onPrint={onPrint} />
+                </div>
+                <div className="flex-1 overflow-auto px-4 pb-4 pt-2">
+                  <DoneTabView orders={completedOrders} onUpdateStatus={onUpdateStatus} onPrint={onPrint} />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── 역할 기반 라우트 가드 ─────────────────────────────────────────────────────
+function RoleGuard({ path, children }: { path: string; children: React.ReactNode }) {
+  const role = useSessionStore((s) => s.role);
+  if (!canAccess(role, path)) {
+    return <Navigate to={DEFAULT_ROUTE[role]} replace />;
+  }
+  return <>{children}</>;
+}
+
+// ── 로그인 후 앱 셸: Socket.io 연결 + 주문 자동 관리 ─────────────────────────
+function AppShell() {
+  const restaurantCode = useSessionStore((s) => s.restaurantCode)!;
+  const theme = useSessionStore((s) => s.theme);
+  const location = useLocation();
   const {
     setOrders, addOrder, updateOrderStatus, cancelOrder,
-    setConnected,
-    setMenuDisplayConfig,
-    connected,
-    orders,
-    scheduledActivationMinutes,
-    autoStartOrders,
-    autoPrint,
-    orderCounts,
+    setConnected, setMenuDisplayConfig,
+    orders, scheduledActivationMinutes, autoStartOrders, autoPrint,
   } = useKDSStore();
   const [printQueue, setPrintQueue] = useState<KDSOrder[]>([]);
   const autoPrintedRef = useRef<Set<string>>(new Set());
-
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const autoStartedRef = useRef<Set<string>>(new Set());
   const [now, setNow] = useState(() => Date.now());
+
+  // ── 테마 동기화: KDS는 항상 다크, 나머지는 사용자 선택 ──
+  useEffect(() => {
+    const isDark = location.pathname === '/kds' || theme === 'dark';
+    document.documentElement.classList.toggle('dark', isDark);
+  }, [theme, location.pathname]);
 
   // 30초마다 now 갱신 → 예약 주문 자동 활성화 체크
   useEffect(() => {
@@ -57,7 +168,6 @@ function KDSApp() {
     }
   };
 
-  // 메뉴 표시 설정 로딩
   const fetchMenuDisplayConfig = async (code: string) => {
     try {
       const res = await fetch(`${SERVER_URL}/api/menu-display/${code.toLowerCase()}`);
@@ -69,9 +179,8 @@ function KDSApp() {
     }
   };
 
+  // Socket.io 연결
   useEffect(() => {
-    if (!restaurantCode) return;
-
     fetchMenuDisplayConfig(restaurantCode);
 
     socket.on('connect', () => {
@@ -85,7 +194,11 @@ function KDSApp() {
     });
     socket.on('order:new', (order: KDSOrder) => {
       addOrder(order);
-      try { new Audio('/notification.mp3').play(); } catch (_) {}
+      // 소스·결제방식에 따라 다른 알림음 재생 (현금 / 배달 / 기본)
+      const { soundEnabled, soundVolume } = useKDSStore.getState();
+      if (soundEnabled) {
+        try { playOrderNotification(order.source, soundVolume / 100, order.paymentMethod); } catch (_) {}
+      }
     });
     socket.on('order:updated', (updated: Partial<KDSOrder> & { id: string }) => {
       if (updated.status) updateOrderStatus(updated.id, updated.status);
@@ -112,6 +225,7 @@ function KDSApp() {
       socket.off('order:cancelled');
       socket.off('menu-display:updated');
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restaurantCode]);
 
   const handleUpdateStatus = async (orderId: string, status: KDSOrder['status']) => {
@@ -127,11 +241,9 @@ function KDSApp() {
     }
   };
 
-  // ── 자동시작: OPEN 비예약 주문 즉시 IN_PROGRESS ─────────────────────────────
-  const autoStartedRef = useRef<Set<string>>(new Set());
-
+  // 자동시작: OPEN 비예약 주문 즉시 IN_PROGRESS
   useEffect(() => {
-    if (!autoStartOrders || !restaurantCode) return;
+    if (!autoStartOrders) return;
     const toStart = orders.filter(
       (o) => o.status === 'OPEN' && !o.isScheduled && !autoStartedRef.current.has(o.id)
     );
@@ -142,9 +254,8 @@ function KDSApp() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orders, autoStartOrders]);
 
-  // ── 예약 주문 자동 활성화 (30초마다 체크) ────────────────────────────────────
+  // 예약 주문 자동 활성화 (30초마다 체크)
   useEffect(() => {
-    if (!restaurantCode) return;
     const toActivate = orders.filter(
       (o) =>
         o.status === 'OPEN' &&
@@ -159,13 +270,9 @@ function KDSApp() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [now]);
 
-  const handlePrint = (order: KDSOrder) => {
-    setPrintQueue((q) => [...q, order]);
-  };
-
-  // ── 자동 프린트: IN_PROGRESS 전환 시 자동 출력 ─────────────────────────────
+  // 자동 프린트: IN_PROGRESS 전환 시 자동 출력
   useEffect(() => {
-    if (!autoPrint || !restaurantCode) return;
+    if (!autoPrint) return;
     const toPrint = orders.filter(
       (o) => o.status === 'IN_PROGRESS' && !autoPrintedRef.current.has(o.id)
     );
@@ -174,113 +281,91 @@ function KDSApp() {
       setPrintQueue((q) => [...q, ...toPrint]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orders, autoPrint, restaurantCode]);
+  }, [orders, autoPrint]);
 
-  const handleLogout = () => {
-    logout();
-    setOrders([]);
+  const handlePrint = (order: KDSOrder) => {
+    setPrintQueue((q) => [...q, order]);
   };
 
-  if (!restaurantCode) {
-    return <RestaurantLogin onJoin={login} />;
-  }
+  const handleConfirmCash = async (orderId: string) => {
+    try {
+      await fetch(`${SERVER_URL}/api/orders/${orderId}/confirm-cash`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ restaurantCode }),
+      });
+      updateOrderStatus(orderId, 'OPEN');
+    } catch (err) {
+      console.error('Failed to confirm cash payment', err);
+    }
+  };
 
-  // ── 주문 분류 ──────────────────────────────────────────────────
-  const activeOrders    = orders.filter((o) => (o.status === 'OPEN' && !o.isScheduled) || o.status === 'IN_PROGRESS');
-  const scheduledOrders = orders.filter((o) => o.status === 'OPEN' && o.isScheduled);
-  const readyOrders     = orders.filter((o) => o.status === 'READY');
-  const completedOrders = orders.filter((o) => o.status === 'COMPLETED');
-
-  const counts = orderCounts();
+  const handleRejectCash = async (orderId: string) => {
+    try {
+      await fetch(`${SERVER_URL}/api/orders/${orderId}/reject-cash`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ restaurantCode }),
+      });
+      cancelOrder(orderId);
+    } catch (err) {
+      console.error('Failed to reject cash order', err);
+    }
+  };
 
   return (
-    <div className="h-screen flex flex-col bg-background max-w-[1024px] mx-auto overflow-hidden">
-      {/* 프린트 큐 */}
-      {printQueue.length > 0 && (
-        <SilentPrintTicket
-          order={printQueue[0]}
-          onDone={() => setPrintQueue((q) => q.slice(1))}
-        />
-      )}
+    <Routes>
+      {/* Display: 풀스크린, 사이드바 없음 */}
+      <Route path="/display" element={<RoleGuard path="/display"><DisplayScreen /></RoleGuard>} />
 
-      <KDSSettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      {/* Admin: 자체 PIN 인증 있으므로 역할 가드 불필요 */}
+      <Route path="/admin" element={<AdminPage />} />
 
-      <StatusBar
-        connected={connected}
-        restaurantName={restaurantName}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        counts={counts}
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-        onLogout={handleLogout}
-        onSettings={() => setSettingsOpen(true)}
-      />
-
-      <div className={`flex-1 min-h-0 ${viewMode === 'list' ? 'overflow-hidden' : 'overflow-auto'}`}>
-        {viewMode === 'list' ? (
-          // ── 리스트 뷰 (기본) ────────────────────────────────────────────────
-          <OrderList
-            activeOrders={activeOrders}
-            scheduledOrders={scheduledOrders}
-            readyOrders={readyOrders}
-            completedOrders={completedOrders}
-            onUpdateStatus={handleUpdateStatus}
-            onPrint={handlePrint}
-          />
-        ) : (
-          // ── 카드 뷰 ─────────────────────────────────────────────────────────
-          <div className="h-full overflow-hidden flex flex-col">
-            {activeTab === 'active' && (
-              <div className="flex-1 overflow-auto px-4 pb-4 pt-2">
-                <ActiveTabView
-                  orders={activeOrders}
-                  onUpdateStatus={handleUpdateStatus}
-                  onPrint={handlePrint}
-                />
-              </div>
-            )}
-            {activeTab === 'scheduled' && (
-              <div className="flex-1 overflow-auto px-4 pb-4 pt-2">
-                <ScheduledTabView
-                  orders={scheduledOrders}
-                  now={now}
-                  scheduledActivationMinutes={scheduledActivationMinutes}
-                  onUpdateStatus={handleUpdateStatus}
-                  onPrint={handlePrint}
-                />
-              </div>
-            )}
-            {activeTab === 'ready-done' && (
-              <div className="flex-1 flex flex-col sm:flex-row overflow-hidden">
-                <div className="flex-1 overflow-auto px-4 pb-4 pt-2 border-b sm:border-b-0 sm:border-r border-border">
-                  <ReadyTabView
-                    orders={readyOrders}
-                    onUpdateStatus={handleUpdateStatus}
-                    onPrint={handlePrint}
-                  />
-                </div>
-                <div className="flex-1 overflow-auto px-4 pb-4 pt-2">
-                  <DoneTabView
-                    orders={completedOrders}
-                    onUpdateStatus={handleUpdateStatus}
-                    onPrint={handlePrint}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
+      {/* 메인 레이아웃 (사이드바 포함) */}
+      <Route element={<Layout />}>
+        <Route index element={<RoleGuard path="/"><HomeScreen /></RoleGuard>} />
+        <Route path="/kds" element={
+          <RoleGuard path="/kds">
+            <KitchenScreen
+              onUpdateStatus={handleUpdateStatus}
+              onPrint={handlePrint}
+              printQueue={printQueue}
+              setPrintQueue={setPrintQueue}
+              now={now}
+              onConfirmCash={handleConfirmCash}
+              onRejectCash={handleRejectCash}
+            />
+          </RoleGuard>
+        } />
+        <Route path="/clock" element={<RoleGuard path="/clock"><ClockScreen /></RoleGuard>} />
+        <Route path="/orders" element={<RoleGuard path="/orders"><OrdersScreen /></RoleGuard>} />
+        <Route path="/cash" element={<RoleGuard path="/cash"><CashManagementScreen /></RoleGuard>} />
+        <Route path="/dashboard" element={<RoleGuard path="/dashboard"><DashboardScreen /></RoleGuard>} />
+      </Route>
+    </Routes>
   );
 }
 
+// ── 메인 앱 ──────────────────────────────────────────────────────────────────
 export default function App() {
-  return (
-    <Routes>
-      <Route path="/admin" element={<AdminPage />} />
-      <Route path="/*" element={<KDSApp />} />
-    </Routes>
-  );
+  const restaurantCode = useSessionStore((s) => s.restaurantCode);
+  const login = useSessionStore((s) => s.login);
+
+  // 로그인 화면은 항상 다크
+  useEffect(() => {
+    if (!restaurantCode) {
+      document.documentElement.classList.add('dark');
+    }
+  }, [restaurantCode]);
+
+  if (!restaurantCode) {
+    return (
+      <Routes>
+        <Route path="/admin" element={<AdminPage />} />
+        <Route path="*" element={<RestaurantLogin onJoin={login} />} />
+      </Routes>
+    );
+  }
+
+  return <AppShell />;
 }

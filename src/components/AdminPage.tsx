@@ -14,6 +14,7 @@ export interface RestaurantConfig {
   enable_tipping: boolean;
   session_timeout_minutes: number;
   logo_style?: string;
+  pay_period_start?: string | null; // 2주 급여 기간 기준 시작일 (YYYY-MM-DD)
   // ── Online Store / Landing Page ──
   timezone?: string;
   hours?: { open: string; close: string; days: number[] } | null;
@@ -27,6 +28,8 @@ export interface RestaurantConfig {
     fontFamily?: string;
   } | null;
   enable_landing?: boolean;
+  enable_cash_payment?: boolean;
+  enable_coin_counting?: boolean;
   description?: string | null;
   address?: string | null;
   phone?: string | null;

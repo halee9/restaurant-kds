@@ -1,4 +1,4 @@
-import { LayoutGrid, List, Settings, X } from 'lucide-react';
+import { LayoutGrid, List, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -12,7 +12,6 @@ interface Props {
   counts: { active: number; scheduled: number; readyDone: number };
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
-  onLogout: () => void;
   onSettings: () => void;
 }
 
@@ -20,7 +19,7 @@ export default function StatusBar({
   connected, restaurantName,
   activeTab, onTabChange,
   counts, viewMode, onViewModeChange,
-  onLogout, onSettings,
+  onSettings,
 }: Props) {
   const tabCls = (tab: KDSTab) =>
     `flex items-center gap-1.5 px-3 py-2 rounded text-sm font-bold transition-colors ${
@@ -41,7 +40,6 @@ export default function StatusBar({
 
       {/* 3탭 */}
       <div className="flex items-center gap-0.5">
-        {/* Active */}
         <button onClick={() => onTabChange('active')} className={tabCls('active')}>
           Active
           {counts.active > 0 && (
@@ -51,7 +49,6 @@ export default function StatusBar({
           )}
         </button>
 
-        {/* Scheduled */}
         <button onClick={() => onTabChange('scheduled')} className={tabCls('scheduled')}>
           <span className="hidden sm:inline">Scheduled</span>
           <span className="sm:hidden">Sched</span>
@@ -62,18 +59,17 @@ export default function StatusBar({
           )}
         </button>
 
-        {/* Ready·Done */}
         <button onClick={() => onTabChange('ready-done')} className={tabCls('ready-done')}>
           Ready·Done
           {counts.readyDone > 0 && (
-            <Badge variant="outline" className="h-5 px-1.5 text-xs border-green-500 text-green-400">
+            <Badge variant="outline" className="h-5 px-1.5 text-xs border-emerald-500 text-emerald-400 animate-pulse">
               {counts.readyDone}
             </Badge>
           )}
         </button>
       </div>
 
-      {/* 뷰 토글 + 날짜 + 설정 + 로그아웃 */}
+      {/* 뷰 토글 + 날짜 + 설정 */}
       <div className="flex items-center gap-2 min-w-24 justify-end flex-shrink-0">
         <div className="flex items-center rounded-md border border-border overflow-hidden">
           <Button
@@ -103,10 +99,6 @@ export default function StatusBar({
         <Separator orientation="vertical" className="h-5 hidden sm:block" />
         <Button variant="ghost" size="sm" onClick={onSettings} className="h-8 px-2 text-muted-foreground" title="POS Settings">
           <Settings className="h-5 w-5" />
-        </Button>
-        <Separator orientation="vertical" className="h-5" />
-        <Button variant="ghost" size="sm" onClick={onLogout} className="h-8 px-2 text-muted-foreground" title="Logout">
-          <X className="h-5 w-5" />
         </Button>
       </div>
     </div>

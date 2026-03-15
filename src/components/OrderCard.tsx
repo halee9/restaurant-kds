@@ -1,4 +1,4 @@
-import { Truck, Calendar, Clock, AlertTriangle, FileText, Printer, Check, CheckCheck, ChevronLeft } from 'lucide-react';
+import { Truck, Calendar, Clock, AlertTriangle, FileText, Printer, Check, CheckCheck, ChevronLeft, Banknote, X } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,8 @@ interface Props {
   order: KDSOrder;
   onUpdateStatus: (orderId: string, status: KDSOrder['status']) => void;
   onPrint: (order: KDSOrder) => void;
+  onConfirmCash?: (orderId: string) => void;
+  onRejectCash?: (orderId: string) => void;
 }
 
 const SOURCE_VARIANT: Record<string, string> = {
@@ -29,7 +31,7 @@ function formatPickupAt(pickupAt: string): string {
   return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 }
 
-export default function OrderCard({ order, onUpdateStatus, onPrint }: Props) {
+export default function OrderCard({ order, onUpdateStatus, onPrint, onConfirmCash, onRejectCash }: Props) {
   const elapsed = getElapsedMinutes(order.createdAt);
   const isUrgent = elapsed >= 15 && order.status === 'OPEN';
   const pickupTime = formatPickupAt(order.pickupAt);
@@ -39,11 +41,20 @@ export default function OrderCard({ order, onUpdateStatus, onPrint }: Props) {
   return (
     <Card className={`flex flex-col gap-0 py-0 overflow-hidden transition-all border-2
       ${order.status === 'COMPLETED' ? 'opacity-50 border-border' : ''}
+      ${order.status === 'PENDING_PAYMENT' ? 'border-amber-400 shadow-lg shadow-amber-900/30' : ''}
       ${order.status === 'IN_PROGRESS' ? 'border-yellow-400' : ''}
       ${order.status === 'READY' ? 'border-green-400' : ''}
       ${order.status === 'OPEN' && !isUrgent ? 'border-border' : ''}
       ${isUrgent ? 'border-red-500 shadow-lg shadow-red-900/40' : ''}
     `}>
+      {/* Cash payment banner */}
+      {order.status === 'PENDING_PAYMENT' && (
+        <div className="bg-amber-500 text-black px-5 py-2 text-sm font-bold flex items-center gap-2">
+          <Banknote className="h-4 w-4" />
+          CASH — Collect {formatMoney(order.totalMoney)}
+        </div>
+      )}
+
       {/* Header */}
       <CardHeader className={`flex flex-row items-center justify-between px-5 py-3.5 space-y-0
         ${order.status === 'IN_PROGRESS' ? 'bg-yellow-500/10' : ''}
@@ -144,6 +155,23 @@ export default function OrderCard({ order, onUpdateStatus, onPrint }: Props) {
 
         {/* Row 2: backward + forward buttons */}
         <div className="px-5 pb-4 pt-2 w-full">
+          {order.status === 'PENDING_PAYMENT' && (
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="h-11 rounded-lg font-bold shrink-0"
+                onClick={() => onRejectCash?.(order.id)}
+              >
+                <X className="mr-1 h-4 w-4" /> Cancel
+              </Button>
+              <Button
+                className="flex-1 h-11 rounded-lg font-bold text-base bg-green-600 hover:bg-green-500 border-0"
+                onClick={() => onConfirmCash?.(order.id)}
+              >
+                <Banknote className="mr-2 h-4 w-4" /> Cash Paid
+              </Button>
+            </div>
+          )}
           {order.status === 'OPEN' && (
             <Button
               className="w-full h-11 rounded-lg font-bold text-base bg-yellow-500 hover:bg-yellow-400 text-black border-0"

@@ -1,4 +1,5 @@
 export type OrderSource = 'Kiosk' | 'Online' | 'DoorDash' | 'Uber Eats' | 'Grubhub' | 'Square Online' | 'Unknown';
+export type PosRole = 'staff' | 'manager' | 'owner';
 
 // ─── Menu Display ─────────────────────────────────────────────────────────────
 
@@ -31,7 +32,7 @@ export interface MenuDisplayConfig {
   modifiers: ModifierDisplayItem[];
 }
 
-export type OrderStatus = 'OPEN' | 'IN_PROGRESS' | 'READY' | 'COMPLETED' | 'CANCELED';
+export type OrderStatus = 'PENDING_PAYMENT' | 'OPEN' | 'IN_PROGRESS' | 'READY' | 'COMPLETED' | 'CANCELED';
 
 export interface OrderModifier {
   name: string;
@@ -58,6 +59,7 @@ export interface KDSOrder {
   pickupAt: string;
   lineItems: OrderLineItem[];
   totalMoney: number; // cents
+  paymentMethod?: string;  // 'CARD' | 'CASH'
   note?: string;
   deliveryNote?: string;  // 배달 앱 배달 지시 (DoorDash/Uber Eats/Grubhub)
   subtotal?: number;    // cents (optional — not all order sources provide it)

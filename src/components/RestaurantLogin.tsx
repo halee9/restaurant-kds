@@ -3,15 +3,21 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import PinPad from './PinPad';
+import type { PosRole } from '../types';
 
 interface Props {
-  onJoin: (code: string, name: string) => void;
+  onJoin: (code: string, name: string, role?: PosRole, staffName?: string) => void;
 }
 
 export default function RestaurantLogin({ onJoin }: Props) {
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // 2단계: PIN 입력
+  const [step, setStep] = useState<'code' | 'pin'>('code');
+  const [pendingConfig, setPendingConfig] = useState<{ code: string; name: string } | null>(null);
 
   const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
 
@@ -30,9 +36,17 @@ export default function RestaurantLogin({ onJoin }: Props) {
         return;
       }
       const config = await res.json();
-      localStorage.setItem('kds_restaurant_code', trimmed);
-      localStorage.setItem('kds_restaurant_name', config.name);
-      onJoin(trimmed, config.name);
+
+      if (config.hasPosRoles) {
+        // PIN 필요 — 2단계로 전환
+        setPendingConfig({ code: trimmed, name: config.name });
+        setStep('pin');
+      } else {
+        // PIN 없음 — 바로 owner로 진입 (기존 동작)
+        localStorage.setItem('kds_restaurant_code', trimmed);
+        localStorage.setItem('kds_restaurant_name', config.name);
+        onJoin(trimmed, config.name);
+      }
     } catch {
       setError('Cannot connect to server. Make sure the server is running.');
     } finally {
@@ -40,12 +54,33 @@ export default function RestaurantLogin({ onJoin }: Props) {
     }
   };
 
+  // PIN 입력 화면
+  if (step === 'pin' && pendingConfig) {
+    return (
+      <PinPad
+        restaurantName={pendingConfig.name}
+        restaurantCode={pendingConfig.code}
+        serverUrl={serverUrl}
+        onVerified={(role, staffName) => {
+          localStorage.setItem('kds_restaurant_code', pendingConfig.code);
+          localStorage.setItem('kds_restaurant_name', pendingConfig.name);
+          onJoin(pendingConfig.code, pendingConfig.name, role, staffName);
+        }}
+        onBack={() => {
+          setStep('code');
+          setPendingConfig(null);
+        }}
+      />
+    );
+  }
+
+  // 코드 입력 화면 (기존)
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <div className="text-4xl mb-2">🍽️</div>
-          <CardTitle>Kitchen Display</CardTitle>
+          <CardTitle>Ziggl POS</CardTitle>
           <CardDescription>Enter your restaurant code to start</CardDescription>
         </CardHeader>
         <CardContent>

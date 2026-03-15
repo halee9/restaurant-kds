@@ -1,5 +1,5 @@
 import React from 'react';
-import { CornerUpLeft, Printer, Check, Info } from 'lucide-react';
+import { CornerUpLeft, Printer, Check, Info, Banknote, X } from 'lucide-react';
 import type { KDSOrder, OrderStatus } from '../types';
 import { getItemDisplay, getModifierDisplay, mergeLineItems, formatElapsed, formatDuration, getElapsedMinutes } from '../utils';
 import { useKDSStore } from '../stores/kdsStore';
@@ -30,6 +30,8 @@ interface Props {
   completedOrders: KDSOrder[];   // COMPLETED (완전 종료)
   onUpdateStatus: (orderId: string, status: OrderStatus) => void;
   onPrint: (order: KDSOrder) => void;
+  onConfirmCash?: (orderId: string) => void;
+  onRejectCash?: (orderId: string) => void;
 }
 
 // 소스 → 배지 색상 (OrderCard와 동일)
@@ -45,6 +47,7 @@ const SOURCE_VARIANT: Record<string, string> = {
 
 // 상태 → 주문번호 텍스트 색 (배경은 다크 그대로)
 function badgeClass(status: OrderStatus) {
+  if (status === 'PENDING_PAYMENT') return 'text-amber-400';
   if (status === 'IN_PROGRESS') return 'text-yellow-400';
   if (status === 'READY')       return 'text-green-400';
   return 'text-red-400';
@@ -71,10 +74,14 @@ function ActiveOrderRow({
   order,
   onUpdateStatus,
   onPrint,
+  onConfirmCash,
+  onRejectCash,
 }: {
   order: KDSOrder;
   onUpdateStatus: Props['onUpdateStatus'];
   onPrint: Props['onPrint'];
+  onConfirmCash?: Props['onConfirmCash'];
+  onRejectCash?: Props['onRejectCash'];
 }) {
   const { menuDisplayConfig, urgencyYellowMin, urgencyOrangeMin, urgencyRedMin } = useKDSStore();
   const { menuItems, modifiers } = menuDisplayConfig;
@@ -140,6 +147,7 @@ function ActiveOrderRow({
 
   function handleAdvance(e: React.MouseEvent) {
     e.stopPropagation();
+    if (isPendingPayment) return; // Cash orders must be confirmed via Cash Paid button
     const next = nextStatus(order.status);
     if (next) onUpdateStatus(order.id, next);
   }
@@ -150,12 +158,14 @@ function ActiveOrderRow({
     if (prev) onUpdateStatus(order.id, prev);
   }
 
+  const isPendingPayment = order.status === 'PENDING_PAYMENT';
+
   return (
     <div
-      className="relative flex items-stretch border-b border-white/20 transition-all"
+      className={`relative flex items-stretch border-b transition-all ${isPendingPayment ? 'border-amber-500/40 bg-amber-900/10' : 'border-white/20'}`}
     >
       {/* 긴급도 바 — 왼쪽 세로 색상 스트라이프 */}
-      <div className={`w-1 self-stretch shrink-0 transition-colors duration-500 ${URGENCY_BAR[urgency]}`} />
+      <div className={`w-1 self-stretch shrink-0 transition-colors duration-500 ${isPendingPayment ? 'bg-amber-500' : URGENCY_BAR[urgency]}`} />
 
       {/* 주문번호 배지 — 클릭 시 상태 전진 */}
       <div
@@ -240,6 +250,25 @@ function ActiveOrderRow({
             ★ {order.note}
           </div>
         )}
+        {isPendingPayment && (
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-sm font-bold text-amber-400 flex items-center gap-1">
+              <Banknote className="h-4 w-4" /> CASH — Collect ${((order.totalMoney ?? 0) / 100).toFixed(2)}
+            </span>
+            <button
+              className="ml-auto text-xs px-2 py-1 rounded border border-white/20 text-white/60 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-1"
+              onClick={(e) => { e.stopPropagation(); onRejectCash?.(order.id); }}
+            >
+              <X className="h-3 w-3" /> Cancel
+            </button>
+            <button
+              className="text-xs px-3 py-1 rounded bg-green-600 hover:bg-green-500 text-white font-bold transition-colors flex items-center gap-1"
+              onClick={(e) => { e.stopPropagation(); onConfirmCash?.(order.id); }}
+            >
+              <Banknote className="h-3 w-3" /> Cash Paid
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 주문 티켓 모달 */}
@@ -307,33 +336,44 @@ function ColumnHeader({ title, count }: { title: string; count: number }) {
 }
 
 // ── 메인 컴포넌트 ────────────────────────────────────────────────────────────
-export default function OrderList({ activeOrders, scheduledOrders, readyOrders, completedOrders, onUpdateStatus, onPrint }: Props) {
+export default function OrderList({ activeOrders, scheduledOrders, readyOrders, completedOrders, onUpdateStatus, onPrint, onConfirmCash, onRejectCash }: Props) {
   const { activeTab } = useSessionStore();
 
   // ── Active 탭 ─────────────────────────────────────────────────────────────
   if (activeTab === 'active') {
-    // startedAt/createdAt 오름차순 (오래된 주문 먼저)
+    // PENDING_PAYMENT를 먼저 표시, 그 다음 오래된 주문 순
     const sorted = [...activeOrders].sort((a, b) => {
+      const aIsPending = a.status === 'PENDING_PAYMENT' ? 0 : 1;
+      const bIsPending = b.status === 'PENDING_PAYMENT' ? 0 : 1;
+      if (aIsPending !== bIsPending) return aIsPending - bIsPending;
       const ta = a.startedAt ?? a.createdAt;
       const tb = b.startedAt ?? b.createdAt;
       return ta.localeCompare(tb);
     });
 
     // Kiosk = 왼쪽, 나머지 (Online/Delivery) = 오른쪽
-    // ※ 'Cash' source는 현재 OrderSource 타입에 없으므로 'Kiosk'만 좌측으로 분류
     const kioskOrders  = sorted.filter((o) => o.source === 'Kiosk');
     const onlineOrders = sorted.filter((o) => o.source !== 'Kiosk');
+    const pendingCashCount = kioskOrders.filter((o) => o.status === 'PENDING_PAYMENT').length;
 
     return (
       <div className="flex flex-col sm:flex-row h-full min-h-0 overflow-hidden no-print">
         {/* 왼쪽: Kiosk / Cash */}
         <div className="flex-1 flex flex-col min-h-0 border-b sm:border-b-0 sm:border-r border-border">
-          <ColumnHeader title="Kiosk / Cash" count={kioskOrders.length} />
+          <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border/60 bg-muted/20 shrink-0">
+            <span className="text-[11px] font-bold text-muted-foreground tracking-widest uppercase">Kiosk / Cash</span>
+            {kioskOrders.length > 0 && (
+              <span className="text-[10px] font-bold text-muted-foreground/60">({kioskOrders.length})</span>
+            )}
+            {pendingCashCount > 0 && (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500 text-black">{pendingCashCount} cash</span>
+            )}
+          </div>
           <div className="flex-1 overflow-y-auto min-h-0">
             {kioskOrders.length === 0
               ? <EmptyState label="No Kiosk Orders" />
               : kioskOrders.map((o) => (
-                  <ActiveOrderRow key={o.id} order={o} onUpdateStatus={onUpdateStatus} onPrint={onPrint} />
+                  <ActiveOrderRow key={o.id} order={o} onUpdateStatus={onUpdateStatus} onPrint={onPrint} onConfirmCash={onConfirmCash} onRejectCash={onRejectCash} />
                 ))
             }
           </div>

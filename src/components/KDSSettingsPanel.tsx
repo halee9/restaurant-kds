@@ -1,6 +1,7 @@
-import { X } from 'lucide-react';
+import { X, Volume2, VolumeX } from 'lucide-react';
 import { useState } from 'react';
 import { useKDSStore } from '../stores/kdsStore';
+import { playTestSound } from '../utils/sounds';
 
 // 긴급도 단계 표시용
 const URGENCY_ROWS = [
@@ -40,6 +41,8 @@ export default function KDSSettingsPanel({ open, onClose }: Props) {
     scheduledActivationMinutes, setScheduledActivationMinutes,
     autoStartOrders, setAutoStartOrders,
     autoPrint, setAutoPrint,
+    soundEnabled, setSoundEnabled,
+    soundVolume, setSoundVolume,
     urgencyYellowMin, setUrgencyYellowMin,
     urgencyOrangeMin, setUrgencyOrangeMin,
     urgencyRedMin,    setUrgencyRedMin,
@@ -132,6 +135,61 @@ export default function KDSSettingsPanel({ open, onClose }: Props) {
               <p className="text-xs text-muted-foreground mt-0.5">Print order ticket when order starts</p>
             </div>
             <Toggle checked={autoPrint} onChange={() => setAutoPrint(!autoPrint)} />
+          </div>
+
+          <div className="h-px bg-border/60" />
+
+          {/* Sound */}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                {soundEnabled ? <Volume2 className="h-4 w-4 text-muted-foreground" /> : <VolumeX className="h-4 w-4 text-muted-foreground" />}
+                <div>
+                  <p className="text-sm font-semibold">Order Sound</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Play sound when new order arrives</p>
+                </div>
+              </div>
+              <Toggle checked={soundEnabled} onChange={() => setSoundEnabled(!soundEnabled)} />
+            </div>
+
+            {soundEnabled && (
+              <>
+                {/* Volume slider */}
+                <div className="flex items-center gap-2">
+                  <VolumeX className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={5}
+                    value={soundVolume}
+                    onChange={(e) => setSoundVolume(parseInt(e.target.value))}
+                    className="flex-1 h-1.5 accent-primary cursor-pointer"
+                  />
+                  <Volume2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span className="text-xs text-muted-foreground tabular-nums w-8 text-right">{soundVolume}%</span>
+                </div>
+
+                {/* Test buttons */}
+                <div className="flex gap-2">
+                  <button
+                    className="text-xs px-2.5 py-1 rounded bg-primary/20 text-primary font-medium hover:bg-primary/30 transition-colors"
+                    onClick={() => playTestSound('default', soundVolume / 100)}
+                  >
+                    ▶ Default
+                  </button>
+                  <button
+                    className="text-xs px-2.5 py-1 rounded bg-orange-500/20 text-orange-400 font-medium hover:bg-orange-500/30 transition-colors"
+                    onClick={() => playTestSound('delivery', soundVolume / 100)}
+                  >
+                    ▶ Delivery
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground -mt-1">
+                  Delivery orders (DoorDash, Uber, Grubhub) use a different alert sound
+                </p>
+              </>
+            )}
           </div>
 
           <div className="h-px bg-border/60" />

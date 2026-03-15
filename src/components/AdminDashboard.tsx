@@ -1,14 +1,18 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import {
+  Settings, Palette, Store, Users, ArrowLeft,
+} from 'lucide-react';
 import type { RestaurantConfig } from './AdminPage';
 import MenuDisplayEditor from './MenuDisplayEditor';
 import OnlineStoreEditor from './OnlineStoreEditor';
+import StaffManager from './StaffManager';
 
-type TabKey = 'settings' | 'menu-display' | 'online-store';
+type TabKey = 'settings' | 'menu-display' | 'online-store' | 'staff';
 
 const LOGO_OPTIONS = [
   { key: 'ginkgo', label: 'Ginkgo',   emoji: '🌿', bg: '#14532d', desc: 'Japanese ginkgo leaf'    },
@@ -37,6 +41,8 @@ export default function AdminDashboard({ config, pin, onSaved, onLogout }: Props
   const [tipPercentages, setTipPercentages] = useState(config.tip_percentages.join(', '));
   const [enableTipping, setEnableTipping] = useState(config.enable_tipping);
   const [sessionTimeout, setSessionTimeout] = useState(String(config.session_timeout_minutes));
+  const [enableCashPayment, setEnableCashPayment] = useState(config.enable_cash_payment ?? false);
+  const [enableCoinCounting, setEnableCoinCounting] = useState(config.enable_coin_counting ?? false);
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [saving, setSaving] = useState(false);
@@ -75,6 +81,8 @@ export default function AdminDashboard({ config, pin, onSaved, onLogout }: Props
           tax_rate: parsedTaxRate / 100,
           tip_percentages: parsedTips,
           enable_tipping: enableTipping,
+          enable_cash_payment: enableCashPayment,
+          enable_coin_counting: enableCoinCounting,
           session_timeout_minutes: parsedTimeout,
           settings_pin: effectivePin,
           logo_style: logoStyle,
@@ -100,11 +108,11 @@ export default function AdminDashboard({ config, pin, onSaved, onLogout }: Props
       {/* 헤더 */}
       <div className="bg-card border-b border-border px-6 py-4 flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-bold">⚙️ Admin Dashboard</h1>
+          <h1 className="text-lg font-bold flex items-center gap-2"><Settings size={20} /> Admin Dashboard</h1>
           <p className="text-xs text-muted-foreground mt-0.5">{config.restaurant_code.toUpperCase()} · {config.name}</p>
         </div>
         <div className="flex items-center gap-4">
-          <a href="/" className="text-xs text-muted-foreground hover:text-foreground transition-colors">← POS</a>
+          <a href="/" className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"><ArrowLeft size={12} /> POS</a>
           <Button variant="ghost" size="sm" onClick={onLogout} className="text-xs">Logout</Button>
         </div>
       </div>
@@ -113,26 +121,32 @@ export default function AdminDashboard({ config, pin, onSaved, onLogout }: Props
       <div className="border-b border-border px-6">
         <div className="flex gap-1">
           {([
-            { key: 'settings', label: '⚙️ Settings' },
-            { key: 'menu-display', label: '🎨 Menu Display' },
-            { key: 'online-store', label: '🏪 Online Store' },
-          ] as { key: TabKey; label: string }[]).map(({ key, label }) => (
+            { key: 'settings', label: 'Settings', icon: <Settings size={15} /> },
+            { key: 'menu-display', label: 'Menu Display', icon: <Palette size={15} /> },
+            { key: 'online-store', label: 'Online Store', icon: <Store size={15} /> },
+            { key: 'staff', label: 'Staff', icon: <Users size={15} /> },
+          ] as { key: TabKey; label: string; icon: ReactNode }[]).map(({ key, label, icon }) => (
             <button
               key={key}
               onClick={() => setActiveTab(key)}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
                 activeTab === key
                   ? 'border-primary text-foreground'
                   : 'border-transparent text-muted-foreground hover:text-foreground'
               }`}
             >
-              {label}
+              {icon} {label}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="max-w-xl mx-auto px-6 py-8">
+      <div className={`${activeTab === 'staff' ? 'max-w-4xl' : 'max-w-xl'} mx-auto px-6 py-8`}>
+
+        {/* Staff 탭 */}
+        {activeTab === 'staff' && (
+          <StaffManager restaurantCode={config.restaurant_code} restaurantName={config.name} pin={pin} payPeriodStart={config.pay_period_start ?? null} onPayPeriodStartSaved={(d) => onSaved({ ...config, pay_period_start: d })} />
+        )}
 
         {/* Online Store 탭 */}
         {activeTab === 'online-store' && (
@@ -220,6 +234,36 @@ export default function AdminDashboard({ config, pin, onSaved, onLogout }: Props
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="tips">Tip Percentages (comma-separated)</Label>
                   <Input id="tips" value={tipPercentages} onChange={e => setTipPercentages(e.target.value)} placeholder="15, 18, 20, 25" />
+                </div>
+              )}
+
+              <div className="flex items-center justify-between py-1">
+                <div>
+                  <p className="text-sm font-medium">Enable Cash Payment</p>
+                  <p className="text-xs text-muted-foreground">Allow customers to pay with cash at the counter</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEnableCashPayment(v => !v)}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${enableCashPayment ? 'bg-primary' : 'bg-muted'}`}
+                >
+                  <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${enableCashPayment ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+
+              {enableCashPayment && (
+                <div className="flex items-center justify-between py-1 pl-4 border-l-2 border-border">
+                  <div>
+                    <p className="text-sm font-medium">Enable Coin Counting</p>
+                    <p className="text-xs text-muted-foreground">Include coins in daily cash reconciliation</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEnableCoinCounting(v => !v)}
+                    className={`relative w-11 h-6 rounded-full transition-colors ${enableCoinCounting ? 'bg-primary' : 'bg-muted'}`}
+                  >
+                    <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${enableCoinCounting ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
                 </div>
               )}
             </CardContent>

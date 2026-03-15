@@ -6,6 +6,8 @@ interface Props {
   orders: KDSOrder[];
   onUpdateStatus: (orderId: string, status: KDSOrder['status']) => void;
   onPrint: (order: KDSOrder) => void;
+  onConfirmCash?: (orderId: string) => void;
+  onRejectCash?: (orderId: string) => void;
 }
 
 function EmptyState({ label }: { label: string }) {
@@ -25,14 +27,17 @@ function SectionLabel({ label }: { label: string }) {
   );
 }
 
-function sortColumn(orders: KDSOrder[]): { inProg: KDSOrder[]; open: KDSOrder[] } {
+function sortColumn(orders: KDSOrder[]): { pending: KDSOrder[]; inProg: KDSOrder[]; open: KDSOrder[] } {
+  const pending = orders
+    .filter((o) => o.status === 'PENDING_PAYMENT')
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   const inProg = orders
     .filter((o) => o.status === 'IN_PROGRESS')
     .sort((a, b) => (a.startedAt ?? a.createdAt).localeCompare(b.startedAt ?? b.createdAt));
   const open = orders
     .filter((o) => o.status === 'OPEN')
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-  return { inProg, open };
+  return { pending, inProg, open };
 }
 
 function Column({
@@ -42,6 +47,8 @@ function Column({
   emptyLabel,
   onUpdateStatus,
   onPrint,
+  onConfirmCash,
+  onRejectCash,
 }: {
   orders: KDSOrder[];
   label: string;
@@ -49,9 +56,11 @@ function Column({
   emptyLabel: string;
   onUpdateStatus: Props['onUpdateStatus'];
   onPrint: Props['onPrint'];
+  onConfirmCash?: Props['onConfirmCash'];
+  onRejectCash?: Props['onRejectCash'];
 }) {
-  const { inProg, open } = sortColumn(orders);
-  const total = inProg.length + open.length;
+  const { pending, inProg, open } = sortColumn(orders);
+  const total = pending.length + inProg.length + open.length;
 
   return (
     <div className="flex-1 min-w-0 flex flex-col border-b lg:border-b-0 lg:border-r border-border last:border-0 min-h-0">
@@ -59,15 +68,29 @@ function Column({
       <div className={`sticky top-0 z-10 flex items-center gap-2 px-3 py-2.5 border-b border-border ${headerClass}`}>
         <span className="text-xs font-bold tracking-widest uppercase">{label}</span>
         <Badge variant="secondary" className="h-5 px-2 text-xs">{total}</Badge>
+        {pending.length > 0 && (
+          <Badge className="h-5 px-2 text-xs bg-amber-500 text-black hover:bg-amber-500">
+            {pending.length} cash
+          </Badge>
+        )}
       </div>
 
       {/* 스크롤 영역 */}
       <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
         {total === 0 && <EmptyState label={emptyLabel} />}
 
+        {pending.length > 0 && (
+          <>
+            <SectionLabel label="💵 Cash — Awaiting Payment" />
+            {pending.map((o) => (
+              <OrderCard key={o.id} order={o} onUpdateStatus={onUpdateStatus} onPrint={onPrint} onConfirmCash={onConfirmCash} onRejectCash={onRejectCash} />
+            ))}
+          </>
+        )}
+
         {inProg.length > 0 && (
           <>
-            {open.length > 0 && <SectionLabel label="In Progress" />}
+            {(open.length > 0 || pending.length > 0) && <SectionLabel label="In Progress" />}
             {inProg.map((o) => (
               <OrderCard key={o.id} order={o} onUpdateStatus={onUpdateStatus} onPrint={onPrint} />
             ))}
@@ -76,7 +99,7 @@ function Column({
 
         {open.length > 0 && (
           <>
-            {inProg.length > 0 && <SectionLabel label="Incoming" />}
+            {(inProg.length > 0 || pending.length > 0) && <SectionLabel label="Incoming" />}
             {open.map((o) => (
               <OrderCard key={o.id} order={o} onUpdateStatus={onUpdateStatus} onPrint={onPrint} />
             ))}
@@ -87,7 +110,7 @@ function Column({
   );
 }
 
-export default function ActiveTabView({ orders, onUpdateStatus, onPrint }: Props) {
+export default function ActiveTabView({ orders, onUpdateStatus, onPrint, onConfirmCash, onRejectCash }: Props) {
   const kioskOrders  = orders.filter((o) => o.source === 'Kiosk');
   const onlineOrders = orders.filter((o) => o.source !== 'Kiosk');
 
@@ -101,6 +124,8 @@ export default function ActiveTabView({ orders, onUpdateStatus, onPrint }: Props
         emptyLabel="No Kiosk Orders"
         onUpdateStatus={onUpdateStatus}
         onPrint={onPrint}
+        onConfirmCash={onConfirmCash}
+        onRejectCash={onRejectCash}
       />
       <Column
         orders={onlineOrders}

@@ -6,10 +6,21 @@
 @custom-variant dark (&:is(.dark *));
 
 body {
-  font-family: 'PT Sans Narrow', system-ui, -apple-system, sans-serif;
-  background-color: #111827;
-  color: #f9fafb;
   min-height: 100vh;
+}
+
+/* KDS(Kitchen) 페이지 전용 폰트 */
+.font-kds {
+  font-family: 'PT Sans Narrow', system-ui, -apple-system, sans-serif;
+}
+
+/* Display: Ready 주문 부드러운 점멸 */
+@keyframes ready-pulse {
+  0%, 100% { opacity: 1; border-color: rgb(16 185 129 / 0.6); }
+  50% { opacity: 0.8; border-color: rgb(16 185 129 / 0.3); }
+}
+.animate-ready-pulse {
+  animation: ready-pulse 2s ease-in-out infinite;
 }
 
 @media print {
