@@ -1,5 +1,5 @@
-import React from 'react';
-import { CornerUpLeft, Printer, Check, Info, Banknote, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { Calendar, ChevronDown, ChevronRight, CornerUpLeft, Printer, Check, Info, Banknote, X } from 'lucide-react';
 import type { KDSOrder, OrderStatus } from '../types';
 import { getItemDisplay, getModifierDisplay, mergeLineItems, formatElapsed, formatDuration, getElapsedMinutes } from '../utils';
 import { useKDSStore } from '../stores/kdsStore';
@@ -336,6 +336,36 @@ function ColumnHeader({ title, count }: { title: string; count: number }) {
   );
 }
 
+// ── Scheduled 접이식 섹션 ─────────────────────────────────────────────────────
+function ScheduledSection({ orders, onUpdateStatus, onPrint }: {
+  orders: KDSOrder[];
+  onUpdateStatus: (orderId: string, status: OrderStatus) => void;
+  onPrint: (order: KDSOrder) => void;
+}) {
+  const [open, setOpen] = useState(true);
+
+  return (
+    <div className="border-t border-border shrink-0">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center gap-2 px-3 py-1.5 bg-purple-900/15 hover:bg-purple-900/25 transition-colors text-left"
+      >
+        {open ? <ChevronDown className="h-3.5 w-3.5 text-purple-400" /> : <ChevronRight className="h-3.5 w-3.5 text-purple-400" />}
+        <Calendar className="h-3 w-3 text-purple-400" />
+        <span className="text-[11px] font-bold text-purple-400 tracking-widest uppercase">Scheduled</span>
+        <span className="text-[10px] font-bold text-muted-foreground/60">({orders.length})</span>
+      </button>
+      {open && (
+        <div className="max-h-48 overflow-y-auto">
+          {orders.map((o) => (
+            <ActiveOrderRow key={o.id} order={o} onUpdateStatus={onUpdateStatus} onPrint={onPrint} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── 메인 컴포넌트 ────────────────────────────────────────────────────────────
 export default function OrderList({ activeOrders, scheduledOrders, readyOrders, completedOrders, cancelledOrders, onUpdateStatus, onPrint, onConfirmCash, onRejectCash }: Props) {
   const { activeTab } = useSessionStore();
@@ -357,41 +387,52 @@ export default function OrderList({ activeOrders, scheduledOrders, readyOrders, 
     const onlineOrders = sorted.filter((o) => o.source !== 'Kiosk');
     const pendingCashCount = kioskOrders.filter((o) => o.status === 'PENDING_PAYMENT').length;
 
+    const sortedScheduled = [...scheduledOrders].sort((a, b) =>
+      (a.pickupAt ?? '').localeCompare(b.pickupAt ?? '')
+    );
+
     return (
-      <div className="flex flex-col sm:flex-row h-full min-h-0 overflow-hidden no-print">
-        {/* 왼쪽: Kiosk / Cash */}
-        <div className="flex-1 flex flex-col min-h-0 border-b sm:border-b-0 sm:border-r border-border">
-          <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border/60 bg-muted/20 shrink-0">
-            <span className="text-[11px] font-bold text-muted-foreground tracking-widest uppercase">Kiosk / Cash</span>
-            {kioskOrders.length > 0 && (
-              <span className="text-[10px] font-bold text-muted-foreground/60">({kioskOrders.length})</span>
-            )}
-            {pendingCashCount > 0 && (
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500 text-black">{pendingCashCount} cash</span>
-            )}
+      <div className="flex flex-col h-full min-h-0 overflow-hidden no-print">
+        <div className="flex flex-col sm:flex-row flex-1 min-h-0 overflow-hidden">
+          {/* 왼쪽: Kiosk / Cash */}
+          <div className="flex-1 flex flex-col min-h-0 border-b sm:border-b-0 sm:border-r border-border">
+            <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border/60 bg-muted/20 shrink-0">
+              <span className="text-[11px] font-bold text-muted-foreground tracking-widest uppercase">Kiosk / Cash</span>
+              {kioskOrders.length > 0 && (
+                <span className="text-[10px] font-bold text-muted-foreground/60">({kioskOrders.length})</span>
+              )}
+              {pendingCashCount > 0 && (
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500 text-black">{pendingCashCount} cash</span>
+              )}
+            </div>
+            <div className="flex-1 overflow-y-auto min-h-0">
+              {kioskOrders.length === 0
+                ? <EmptyState label="No Kiosk Orders" />
+                : kioskOrders.map((o) => (
+                    <ActiveOrderRow key={o.id} order={o} onUpdateStatus={onUpdateStatus} onPrint={onPrint} onConfirmCash={onConfirmCash} onRejectCash={onRejectCash} />
+                  ))
+              }
+            </div>
           </div>
-          <div className="flex-1 overflow-y-auto min-h-0">
-            {kioskOrders.length === 0
-              ? <EmptyState label="No Kiosk Orders" />
-              : kioskOrders.map((o) => (
-                  <ActiveOrderRow key={o.id} order={o} onUpdateStatus={onUpdateStatus} onPrint={onPrint} onConfirmCash={onConfirmCash} onRejectCash={onRejectCash} />
-                ))
-            }
+
+          {/* 오른쪽: Pickup / Delivery */}
+          <div className="flex-1 flex flex-col min-h-0">
+            <ColumnHeader title="Pickup / Delivery" count={onlineOrders.length} />
+            <div className="flex-1 overflow-y-auto min-h-0">
+              {onlineOrders.length === 0
+                ? <EmptyState label="No Pickup / Delivery Orders" />
+                : onlineOrders.map((o) => (
+                    <ActiveOrderRow key={o.id} order={o} onUpdateStatus={onUpdateStatus} onPrint={onPrint} />
+                  ))
+              }
+            </div>
           </div>
         </div>
 
-        {/* 오른쪽: Pickup / Delivery */}
-        <div className="flex-1 flex flex-col min-h-0">
-          <ColumnHeader title="Pickup / Delivery" count={onlineOrders.length} />
-          <div className="flex-1 overflow-y-auto min-h-0">
-            {onlineOrders.length === 0
-              ? <EmptyState label="No Pickup / Delivery Orders" />
-              : onlineOrders.map((o) => (
-                  <ActiveOrderRow key={o.id} order={o} onUpdateStatus={onUpdateStatus} onPrint={onPrint} />
-                ))
-            }
-          </div>
-        </div>
+        {/* Scheduled 섹션 */}
+        {sortedScheduled.length > 0 && (
+          <ScheduledSection orders={sortedScheduled} onUpdateStatus={onUpdateStatus} onPrint={onPrint} />
+        )}
       </div>
     );
   }

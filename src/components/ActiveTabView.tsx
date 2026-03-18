@@ -1,9 +1,15 @@
+import { useState } from 'react';
+import { Calendar, ChevronDown, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import type { KDSOrder } from '../types';
 import OrderCard from './OrderCard';
+import { Countdown } from './ScheduledTabView';
 
 interface Props {
   orders: KDSOrder[];
+  scheduledOrders: KDSOrder[];
+  now: number;
+  scheduledActivationMinutes: number;
   onUpdateStatus: (orderId: string, status: KDSOrder['status']) => void;
   onPrint: (order: KDSOrder) => void;
   onConfirmCash?: (orderId: string) => void;
@@ -110,31 +116,68 @@ function Column({
   );
 }
 
-export default function ActiveTabView({ orders, onUpdateStatus, onPrint, onConfirmCash, onRejectCash }: Props) {
+export default function ActiveTabView({ orders, scheduledOrders, now, scheduledActivationMinutes, onUpdateStatus, onPrint, onConfirmCash, onRejectCash }: Props) {
   const kioskOrders  = orders.filter((o) => o.source === 'Kiosk');
   const onlineOrders = orders.filter((o) => o.source !== 'Kiosk');
+  const [scheduledOpen, setScheduledOpen] = useState(true);
+
+  const sortedScheduled = [...scheduledOrders].sort((a, b) =>
+    (a.pickupAt ?? '').localeCompare(b.pickupAt ?? '')
+  );
 
   return (
-    // portrait (< 1024px): 위아래 스택 / landscape (≥ 1024px): 좌우 50/50
-    <div className="flex flex-col lg:flex-row h-full min-h-0 overflow-hidden">
-      <Column
-        orders={kioskOrders}
-        label="Kiosk"
-        headerClass="bg-blue-900/20"
-        emptyLabel="No Kiosk Orders"
-        onUpdateStatus={onUpdateStatus}
-        onPrint={onPrint}
-        onConfirmCash={onConfirmCash}
-        onRejectCash={onRejectCash}
-      />
-      <Column
-        orders={onlineOrders}
-        label="Online / Delivery"
-        headerClass="bg-purple-900/20"
-        emptyLabel="No Online Orders"
-        onUpdateStatus={onUpdateStatus}
-        onPrint={onPrint}
-      />
+    <div className="flex flex-col h-full min-h-0 overflow-hidden">
+      {/* 기존 Kiosk / Online 2컬럼 */}
+      <div className="flex flex-col lg:flex-row flex-1 min-h-0 overflow-hidden">
+        <Column
+          orders={kioskOrders}
+          label="Kiosk"
+          headerClass="bg-blue-900/20"
+          emptyLabel="No Kiosk Orders"
+          onUpdateStatus={onUpdateStatus}
+          onPrint={onPrint}
+          onConfirmCash={onConfirmCash}
+          onRejectCash={onRejectCash}
+        />
+        <Column
+          orders={onlineOrders}
+          label="Online / Delivery"
+          headerClass="bg-purple-900/20"
+          emptyLabel="No Online Orders"
+          onUpdateStatus={onUpdateStatus}
+          onPrint={onPrint}
+        />
+      </div>
+
+      {/* Scheduled 섹션 (접을 수 있는 하단 영역) */}
+      {sortedScheduled.length > 0 && (
+        <div className="border-t border-border shrink-0">
+          <button
+            onClick={() => setScheduledOpen((v) => !v)}
+            className="w-full flex items-center gap-2 px-4 py-2 bg-purple-900/15 hover:bg-purple-900/25 transition-colors text-left"
+          >
+            {scheduledOpen ? <ChevronDown className="h-4 w-4 text-purple-400" /> : <ChevronRight className="h-4 w-4 text-purple-400" />}
+            <Calendar className="h-3.5 w-3.5 text-purple-400" />
+            <span className="text-xs font-bold tracking-widest uppercase text-purple-400">Scheduled</span>
+            <Badge variant="secondary" className="h-5 px-2 text-xs">{sortedScheduled.length}</Badge>
+          </button>
+
+          {scheduledOpen && (
+            <div className="max-h-64 overflow-y-auto px-4 py-3">
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {sortedScheduled.map((o) => (
+                  <div key={o.id}>
+                    {o.pickupAt && (
+                      <Countdown pickupAt={o.pickupAt} now={now} activationMin={scheduledActivationMinutes} />
+                    )}
+                    <OrderCard order={o} onUpdateStatus={onUpdateStatus} onPrint={onPrint} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

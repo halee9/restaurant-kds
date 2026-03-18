@@ -89,7 +89,7 @@ function KitchenScreen({ onUpdateStatus, onPrint, printQueue, setPrintQueue, now
           <div className="h-full overflow-hidden flex flex-col">
             {activeTab === 'active' && (
               <div className="flex-1 overflow-auto px-4 pb-4 pt-2">
-                <ActiveTabView orders={activeOrders} onUpdateStatus={onUpdateStatus} onPrint={onPrint} onConfirmCash={onConfirmCash} onRejectCash={onRejectCash} />
+                <ActiveTabView orders={activeOrders} scheduledOrders={scheduledOrders} now={now} scheduledActivationMinutes={scheduledActivationMinutes} onUpdateStatus={onUpdateStatus} onPrint={onPrint} onConfirmCash={onConfirmCash} onRejectCash={onRejectCash} />
               </div>
             )}
             {activeTab === 'scheduled' && (

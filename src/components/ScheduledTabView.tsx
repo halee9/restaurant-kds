@@ -10,7 +10,7 @@ interface Props {
   onPrint: (order: KDSOrder) => void;
 }
 
-function Countdown({ pickupAt, now, activationMin }: { pickupAt: string; now: number; activationMin: number }) {
+export function Countdown({ pickupAt, now, activationMin }: { pickupAt: string; now: number; activationMin: number }) {
   const minsUntil = Math.round((new Date(pickupAt).getTime() - now) / 60_000);
 
   if (minsUntil <= 0) {
