@@ -408,15 +408,26 @@ export default function OrdersScreen() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ status, restaurantCode }),
             });
-            // refresh list
             fetchOrders();
-            // update selected order status
             setSelectedOrder((prev) =>
               prev ? { ...prev, status, updatedAt: new Date().toISOString() } : null
             );
           } catch (err) {
             console.error('[Orders] status update failed:', err);
           }
+        }}
+        onRefund={async (orderId) => {
+          const res = await fetch(`${SERVER_URL}/api/orders/${orderId}/refund`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ restaurantCode }),
+          });
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            alert(data.error || 'Refund failed');
+            throw new Error(data.error || 'Refund failed');
+          }
+          fetchOrders();
         }}
       />
     </div>

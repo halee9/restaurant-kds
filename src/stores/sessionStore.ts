@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { PosRole } from '../types';
 
-export type KDSTab = 'active' | 'scheduled' | 'ready-done';
+export type KDSTab = 'active' | 'scheduled' | 'ready-done' | 'cancelled';
 export type ViewMode = 'list' | 'card';
 export type Theme = 'light' | 'dark';
 

@@ -9,7 +9,7 @@ interface Props {
   restaurantName: string;
   activeTab: KDSTab;
   onTabChange: (tab: KDSTab) => void;
-  counts: { active: number; scheduled: number; readyDone: number };
+  counts: { active: number; scheduled: number; readyDone: number; cancelled: number };
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
   onSettings: () => void;
@@ -64,6 +64,15 @@ export default function StatusBar({
           {counts.readyDone > 0 && (
             <Badge variant="outline" className="h-5 px-1.5 text-xs border-emerald-500 text-emerald-400 animate-pulse">
               {counts.readyDone}
+            </Badge>
+          )}
+        </button>
+
+        <button onClick={() => onTabChange('cancelled')} className={tabCls('cancelled')}>
+          Cancelled
+          {counts.cancelled > 0 && (
+            <Badge variant="outline" className="h-5 px-1.5 text-xs border-red-500 text-red-400">
+              {counts.cancelled}
             </Badge>
           )}
         </button>

@@ -51,6 +51,7 @@ function formatShortMoney(cents: number) {
 const COLORS = ['#8b5cf6', '#06b6d4', '#f59e0b', '#10b981', '#ef4444', '#6366f1', '#ec4899'];
 
 const PERIOD_OPTIONS = [
+  { value: '0', label: 'Today' },
   { value: '7', label: 'Last 7 days' },
   { value: '14', label: 'Last 14 days' },
   { value: '30', label: 'Last 30 days' },
@@ -67,7 +68,7 @@ export default function DashboardScreen() {
   const restaurantCode = useSessionStore((s) => s.restaurantCode);
   const theme = useSessionStore((s) => s.theme);
   const isDark = theme === 'dark';
-  const [period, setPeriod] = useState('7');
+  const [period, setPeriod] = useState('0');
   const [loading, setLoading] = useState(false);
 
   const [summary, setSummary] = useState<Summary | null>(null);

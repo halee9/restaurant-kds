@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { KDSOrder, OrderStatus } from '../types';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -9,15 +10,24 @@ import {
   SheetTitle,
 } from './ui/sheet';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog';
+import {
   Clock, CreditCard, User, Package,
   ChefHat, CheckCircle2, XCircle,
-  ArrowRight,
+  ArrowRight, Undo2,
 } from 'lucide-react';
 
 interface Props {
   order: KDSOrder | null;
   onClose: () => void;
   onStatusChange: (orderId: string, status: OrderStatus) => Promise<void>;
+  onRefund?: (orderId: string) => Promise<void>;
 }
 
 function formatMoney(cents: number) {
@@ -82,16 +92,35 @@ function getNextActions(status: OrderStatus): { label: string; icon: React.React
   }
 }
 
-export default function OrderDetailPanel({ order, onClose, onStatusChange }: Props) {
+export default function OrderDetailPanel({ order, onClose, onStatusChange, onRefund }: Props) {
+  const [refundConfirmOpen, setRefundConfirmOpen] = useState(false);
+  const [refunding, setRefunding] = useState(false);
+
   if (!order) return null;
 
   const actions = getNextActions(order.status);
+  const canRefund = onRefund && (order.status === 'COMPLETED' || order.status === 'READY') && !order.refundedAt;
+
+  const handleRefund = async () => {
+    if (!onRefund) return;
+    setRefunding(true);
+    try {
+      await onRefund(order.id);
+      setRefundConfirmOpen(false);
+      onClose();
+    } catch {
+      // error handled by parent
+    } finally {
+      setRefunding(false);
+    }
+  };
 
   const timeline = [
     { label: 'Created', time: order.createdAt, icon: <Clock size={12} /> },
     { label: 'Started', time: order.startedAt, icon: <ChefHat size={12} /> },
     { label: 'Ready', time: order.readyAt, icon: <CheckCircle2 size={12} /> },
     { label: 'Completed', time: order.completedAt, icon: <Package size={12} /> },
+    ...(order.refundedAt ? [{ label: 'Refunded', time: order.refundedAt, icon: <Undo2 size={12} /> }] : []),
   ];
 
   return (
@@ -126,9 +155,9 @@ export default function OrderDetailPanel({ order, onClose, onStatusChange }: Pro
         </SheetHeader>
 
         {/* Actions */}
-        {actions.length > 0 && (
+        {(actions.length > 0 || canRefund || order.refundedAt) && (
           <>
-            <div className="flex gap-2 mb-4">
+            <div className="flex gap-2 mb-4 flex-wrap">
               {actions.map((action) => (
                 <Button
                   key={action.nextStatus}
@@ -141,10 +170,46 @@ export default function OrderDetailPanel({ order, onClose, onStatusChange }: Pro
                   {action.label}
                 </Button>
               ))}
+              {canRefund && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setRefundConfirmOpen(true)}
+                  className="flex items-center gap-1"
+                >
+                  <Undo2 size={14} />
+                  Refund
+                </Button>
+              )}
+              {order.refundedAt && (
+                <Badge variant="outline" className="text-sm bg-red-500/20 text-red-400 border-red-500/30">
+                  Refunded
+                </Badge>
+              )}
             </div>
             <Separator className="mb-4" />
           </>
         )}
+
+        {/* Refund Confirmation Dialog */}
+        <Dialog open={refundConfirmOpen} onOpenChange={setRefundConfirmOpen}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Confirm Refund</DialogTitle>
+              <DialogDescription>
+                Refund {formatMoney(order.totalMoney)} for order #{order.displayId}? This will reverse the payment and cancel the order.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => setRefundConfirmOpen(false)} disabled={refunding}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleRefund} disabled={refunding}>
+                {refunding ? 'Processing...' : 'Refund'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Customer Info */}
         <section className="mb-4">

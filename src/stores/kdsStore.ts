@@ -57,7 +57,7 @@ interface KDSState {
   setUrgencyRedMin: (v: number) => void;
 
   // 파생 상태
-  orderCounts: () => { pendingPayment: number; active: number; scheduled: number; readyDone: number };
+  orderCounts: () => { pendingPayment: number; active: number; scheduled: number; readyDone: number; cancelled: number };
 }
 
 export const useKDSStore = create<KDSState>()((set, get) => ({
@@ -101,7 +101,9 @@ export const useKDSStore = create<KDSState>()((set, get) => ({
 
   cancelOrder: (id) =>
     set((state) => ({
-      orders: state.orders.filter((o) => o.id !== id),
+      orders: state.orders.map((o) =>
+        o.id === id ? { ...o, status: 'CANCELED' as OrderStatus, updatedAt: new Date().toISOString() } : o
+      ),
     })),
 
   setConnected: (connected) => set({ connected }),
@@ -154,6 +156,7 @@ export const useKDSStore = create<KDSState>()((set, get) => ({
       scheduled: orders.filter((o) => o.status === 'OPEN' && o.isScheduled).length,
       // READY만 표시 (COMPLETED는 제외 — 실질적으로 중요한 건 READY)
       readyDone: orders.filter((o) => o.status === 'READY').length,
+      cancelled: orders.filter((o) => o.status === 'CANCELED').length,
     };
   },
 }));

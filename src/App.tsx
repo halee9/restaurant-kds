@@ -44,6 +44,7 @@ function KitchenScreen({ onUpdateStatus, onPrint, printQueue, setPrintQueue, now
   const scheduledOrders = orders.filter((o) => o.status === 'OPEN' && o.isScheduled);
   const readyOrders     = orders.filter((o) => o.status === 'READY');
   const completedOrders = orders.filter((o) => o.status === 'COMPLETED');
+  const cancelledOrders = orders.filter((o) => o.status === 'CANCELED');
 
   const counts = orderCounts();
 
@@ -77,6 +78,7 @@ function KitchenScreen({ onUpdateStatus, onPrint, printQueue, setPrintQueue, now
             scheduledOrders={scheduledOrders}
             readyOrders={readyOrders}
             completedOrders={completedOrders}
+            cancelledOrders={cancelledOrders}
             onUpdateStatus={onUpdateStatus}
             onPrint={onPrint}
             onConfirmCash={onConfirmCash}
@@ -108,6 +110,11 @@ function KitchenScreen({ onUpdateStatus, onPrint, printQueue, setPrintQueue, now
                 <div className="flex-1 overflow-auto px-4 pb-4 pt-2">
                   <DoneTabView orders={completedOrders} onUpdateStatus={onUpdateStatus} onPrint={onPrint} />
                 </div>
+              </div>
+            )}
+            {activeTab === 'cancelled' && (
+              <div className="flex-1 overflow-auto px-4 pb-4 pt-2">
+                <DoneTabView orders={cancelledOrders} onUpdateStatus={onUpdateStatus} onPrint={onPrint} />
               </div>
             )}
           </div>

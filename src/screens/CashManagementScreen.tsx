@@ -111,7 +111,7 @@ export default function CashManagementScreen() {
       const [dailyRes, salesRes, historyRes, configRes] = await Promise.all([
         fetch(`${SERVER_URL}/api/cash/${code}/daily/${date}`),
         fetch(`${SERVER_URL}/api/cash/${code}/sales-total/${date}`),
-        fetch(`${SERVER_URL}/api/cash/${code}/history?from=${shiftDate(date, -7)}&to=${shiftDate(date, -1)}`),
+        fetch(`${SERVER_URL}/api/cash/${code}/history?from=${shiftDate(date, -30)}&to=${shiftDate(date, -1)}`),
         fetch(`${SERVER_URL}/api/admin/${code}/config`).catch(() => null),
       ]);
 
@@ -407,37 +407,49 @@ export default function CashManagementScreen() {
           {saving ? 'Saving...' : 'Save'}
         </Button>
 
-        {/* ── Recent History ── */}
+        {/* ── Cash History (30 days) ── */}
         {history.length > 0 && (
           <Card className="bg-card border-border">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm uppercase tracking-wider flex items-center gap-2">
                 <History size={14} />
-                Recent History
+                Cash History
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="divide-y divide-border">
-                {history.map((h) => {
-                  const d = new Date(h.date + 'T12:00:00');
-                  const dateLabel = d.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' });
-                  return (
-                    <button
-                      key={h.date}
-                      onClick={() => setDate(h.date)}
-                      className="flex items-center justify-between w-full py-2 px-1 hover:bg-muted/30 transition-colors rounded text-sm"
-                    >
-                      <span className="text-muted-foreground font-mono w-12">{dateLabel}</span>
-                      <span>Sales {formatMoney(h.cash_sales_total)}</span>
-                      <span>Count {formatMoney(h.counted_total)}</span>
-                      <span className={`font-medium ${
-                        h.variance === 0 ? 'text-emerald-400' : h.variance > 0 ? 'text-amber-400' : 'text-red-400'
-                      }`}>
-                        Var {h.variance >= 0 ? '+' : ''}{formatMoney(h.variance)}
-                      </span>
-                    </button>
-                  );
-                })}
+            <CardContent className="p-0">
+              <div className="max-h-[400px] overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-card border-b border-border">
+                    <tr className="text-xs text-muted-foreground uppercase tracking-wider">
+                      <th className="text-left py-2 px-3">Date</th>
+                      <th className="text-right py-2 px-3">Cash Sales</th>
+                      <th className="text-right py-2 px-3">Counted</th>
+                      <th className="text-right py-2 px-3">Variance</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {history.map((h) => {
+                      const d = new Date(h.date + 'T12:00:00');
+                      const dateLabel = d.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' });
+                      return (
+                        <tr
+                          key={h.date}
+                          onClick={() => setDate(h.date)}
+                          className="hover:bg-muted/30 transition-colors cursor-pointer"
+                        >
+                          <td className="py-2 px-3 font-mono text-muted-foreground">{dateLabel}</td>
+                          <td className="py-2 px-3 text-right">{formatMoney(h.cash_sales_total)}</td>
+                          <td className="py-2 px-3 text-right">{h.counted_total ? formatMoney(h.counted_total) : <span className="text-muted-foreground">—</span>}</td>
+                          <td className={`py-2 px-3 text-right font-medium ${
+                            h.variance === 0 ? 'text-emerald-400' : h.variance > 0 ? 'text-amber-400' : 'text-red-400'
+                          }`}>
+                            {h.counted_total ? `${h.variance >= 0 ? '+' : ''}${formatMoney(h.variance)}` : <span className="text-muted-foreground">—</span>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </CardContent>
           </Card>

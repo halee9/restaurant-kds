@@ -28,6 +28,7 @@ interface Props {
   scheduledOrders: KDSOrder[];   // OPEN + isScheduled (예약 대기)
   readyOrders: KDSOrder[];       // READY (픽업 대기)
   completedOrders: KDSOrder[];   // COMPLETED (완전 종료)
+  cancelledOrders: KDSOrder[];   // CANCELED (취소)
   onUpdateStatus: (orderId: string, status: OrderStatus) => void;
   onPrint: (order: KDSOrder) => void;
   onConfirmCash?: (orderId: string) => void;
@@ -336,7 +337,7 @@ function ColumnHeader({ title, count }: { title: string; count: number }) {
 }
 
 // ── 메인 컴포넌트 ────────────────────────────────────────────────────────────
-export default function OrderList({ activeOrders, scheduledOrders, readyOrders, completedOrders, onUpdateStatus, onPrint, onConfirmCash, onRejectCash }: Props) {
+export default function OrderList({ activeOrders, scheduledOrders, readyOrders, completedOrders, cancelledOrders, onUpdateStatus, onPrint, onConfirmCash, onRejectCash }: Props) {
   const { activeTab } = useSessionStore();
 
   // ── Active 탭 ─────────────────────────────────────────────────────────────
@@ -406,6 +407,27 @@ export default function OrderList({ activeOrders, scheduledOrders, readyOrders, 
         <div className="flex-1 overflow-y-auto min-h-0">
           {sorted.length === 0
             ? <EmptyState label="No Scheduled Orders" />
+            : sorted.map((o) => (
+                <ActiveOrderRow key={o.id} order={o} onUpdateStatus={onUpdateStatus} onPrint={onPrint} />
+              ))
+          }
+        </div>
+      </div>
+    );
+  }
+
+  // ── Cancelled 탭 ──────────────────────────────────────────────────────────
+  if (activeTab === 'cancelled') {
+    const sorted = [...cancelledOrders].sort((a, b) =>
+      (b.updatedAt ?? b.createdAt).localeCompare(a.updatedAt ?? a.createdAt)
+    );
+
+    return (
+      <div className="flex flex-col h-full min-h-0 overflow-hidden no-print">
+        <ColumnHeader title="Cancelled Orders" count={sorted.length} />
+        <div className="flex-1 overflow-y-auto min-h-0">
+          {sorted.length === 0
+            ? <EmptyState label="No Cancelled Orders" />
             : sorted.map((o) => (
                 <ActiveOrderRow key={o.id} order={o} onUpdateStatus={onUpdateStatus} onPrint={onPrint} />
               ))

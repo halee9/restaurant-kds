@@ -67,6 +67,8 @@ export interface KDSOrder {
   tax?: number;         // cents
   createdAt: string;
   updatedAt: string;
+  paymentSource?: string;  // 'stripe' | 'square' | 'cash'
+  refundedAt?: string;     // 환불된 시각
   startedAt?: string;    // IN_PROGRESS로 처음 전환된 시각
   readyAt?: string;      // READY로 처음 전환된 시각
   completedAt?: string;  // COMPLETED로 처음 전환된 시각
