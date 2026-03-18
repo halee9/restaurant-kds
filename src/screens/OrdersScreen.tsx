@@ -427,6 +427,10 @@ export default function OrdersScreen() {
             alert(data.error || 'Refund failed');
             throw new Error(data.error || 'Refund failed');
           }
+          const data = await res.json().catch(() => ({}));
+          if (data.autoRefunded === false) {
+            alert('Order cancelled. Please process the payment refund manually via Stripe/Square dashboard.');
+          }
           fetchOrders();
         }}
       />
