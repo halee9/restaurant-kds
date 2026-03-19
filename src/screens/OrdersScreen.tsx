@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '../components/ui/select';
 import {
-  Search, ChevronLeft, ChevronRight, RefreshCw, Filter, X,
+  Search, ChevronLeft, ChevronRight, RefreshCw, Filter, X, AlertTriangle,
 } from 'lucide-react';
 import OrderDetailPanel from '../components/OrderDetailPanel';
 
@@ -308,6 +308,7 @@ export default function OrdersScreen() {
                     <div className="flex items-center gap-1">
                       {statusBadge(order.status)}
                       {order.refundedAt && <Badge variant="outline" className="bg-red-500/20 text-red-400 border-red-500/30 text-xs">Refunded</Badge>}
+                      {order.duplicateOf && <Badge className="bg-red-600 text-white text-xs flex items-center gap-0.5"><AlertTriangle className="h-3 w-3" /> Dup #{order.duplicateOf}</Badge>}
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-sm">
@@ -360,6 +361,7 @@ export default function OrdersScreen() {
                       <div className="flex items-center gap-1">
                         {statusBadge(order.status)}
                         {order.refundedAt && <Badge variant="outline" className="bg-red-500/20 text-red-400 border-red-500/30 text-xs">Refunded</Badge>}
+                        {order.duplicateOf && <Badge className="bg-red-600 text-white text-xs flex items-center gap-0.5"><AlertTriangle className="h-3 w-3" /> Dup #{order.duplicateOf}</Badge>}
                       </div>
                     </td>
                     <td className="px-4 py-3">{sourceBadge(order.source)}</td>

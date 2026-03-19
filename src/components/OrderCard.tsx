@@ -79,6 +79,11 @@ export default function OrderCard({ order, onUpdateStatus, onPrint, onConfirmCas
               <Calendar className="h-3 w-3" /> Scheduled
             </Badge>
           )}
+          {order.duplicateOf && (
+            <Badge className="shrink-0 text-xs bg-red-600 text-white flex items-center gap-1 animate-pulse">
+              <AlertTriangle className="h-3 w-3" /> Duplicate of #{order.duplicateOf}
+            </Badge>
+          )}
         </div>
         <div className="text-right shrink-0 leading-tight">
           <div className={`text-base font-black ${isUrgent ? 'text-red-400' : 'text-muted-foreground'}`}>

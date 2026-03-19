@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, ChevronDown, ChevronRight, CornerUpLeft, Printer, Check, Info, Banknote, X, Inbox } from 'lucide-react';
+import { AlertTriangle, Calendar, ChevronDown, ChevronRight, CornerUpLeft, Printer, Check, Info, Banknote, X, Inbox } from 'lucide-react';
 import type { KDSOrder, OrderStatus } from '../types';
 import { getItemDisplay, getModifierDisplay, mergeLineItems, formatElapsed, formatDuration, getElapsedMinutes } from '../utils';
 import { useKDSStore } from '../stores/kdsStore';
@@ -281,6 +281,11 @@ function ActiveOrderRow({
         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${sourceBadge}`}>
           {order.source}
         </span>
+        {order.duplicateOf && (
+          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 bg-red-600 text-white flex items-center gap-0.5 animate-pulse">
+            <AlertTriangle className="h-3 w-3" /> Dup #{order.duplicateOf}
+          </span>
+        )}
         <span className="text-sm font-semibold text-blue-300 shrink-0">
           {order.displayName}
         </span>
