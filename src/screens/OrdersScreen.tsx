@@ -76,8 +76,10 @@ function formatMoney(cents: number) {
 
 function formatTime(iso: string) {
   if (!iso) return '-';
+  const tz = useSessionStore.getState().timezone || 'America/Los_Angeles';
   const d = new Date(iso);
   return d.toLocaleString('en-US', {
+    timeZone: tz,
     month: 'short', day: 'numeric',
     hour: 'numeric', minute: '2-digit',
     hour12: true,

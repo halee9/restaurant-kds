@@ -7,7 +7,7 @@ import PinPad from './PinPad';
 import type { PosRole } from '../types';
 
 interface Props {
-  onJoin: (code: string, name: string, role?: PosRole, staffName?: string, pin?: string) => void;
+  onJoin: (code: string, name: string, role?: PosRole, staffName?: string, pin?: string, timezone?: string) => void;
 }
 
 export default function RestaurantLogin({ onJoin }: Props) {
@@ -17,7 +17,7 @@ export default function RestaurantLogin({ onJoin }: Props) {
 
   // 2단계: PIN 입력
   const [step, setStep] = useState<'code' | 'pin'>('code');
-  const [pendingConfig, setPendingConfig] = useState<{ code: string; name: string } | null>(null);
+  const [pendingConfig, setPendingConfig] = useState<{ code: string; name: string; timezone: string } | null>(null);
 
   const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
 
@@ -39,13 +39,13 @@ export default function RestaurantLogin({ onJoin }: Props) {
 
       if (config.hasPosRoles) {
         // PIN 필요 — 2단계로 전환
-        setPendingConfig({ code: trimmed, name: config.name });
+        setPendingConfig({ code: trimmed, name: config.name, timezone: config.timezone ?? 'America/Los_Angeles' });
         setStep('pin');
       } else {
         // PIN 없음 — 바로 owner로 진입 (기존 동작)
         localStorage.setItem('kds_restaurant_code', trimmed);
         localStorage.setItem('kds_restaurant_name', config.name);
-        onJoin(trimmed, config.name);
+        onJoin(trimmed, config.name, undefined, undefined, undefined, config.timezone ?? 'America/Los_Angeles');
       }
     } catch {
       setError('Cannot connect to server. Make sure the server is running.');
@@ -64,7 +64,7 @@ export default function RestaurantLogin({ onJoin }: Props) {
         onVerified={(role, staffName, pin) => {
           localStorage.setItem('kds_restaurant_code', pendingConfig.code);
           localStorage.setItem('kds_restaurant_name', pendingConfig.name);
-          onJoin(pendingConfig.code, pendingConfig.name, role, staffName, pin);
+          onJoin(pendingConfig.code, pendingConfig.name, role, staffName, pin, pendingConfig.timezone);
         }}
         onBack={() => {
           setStep('code');

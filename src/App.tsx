@@ -22,6 +22,7 @@ import DisplayScreen from './screens/DisplayScreen';
 import HomeScreen from './screens/HomeScreen';
 import ClockScreen from './screens/ClockScreen';
 import CashManagementScreen from './screens/CashManagementScreen';
+import CounterScreen from './screens/CounterScreen';
 import { playOrderNotification } from './utils/sounds';
 import { isScheduledOrder } from './utils/isScheduledOrder';
 
@@ -293,12 +294,12 @@ function AppShell() {
     setPrintQueue((q) => [...q, order]);
   };
 
-  const handleConfirmCash = async (orderId: string) => {
+  const handleConfirmCash = async (orderId: string, cashTendered?: number, cashChange?: number) => {
     try {
       await fetch(`${SERVER_URL}/api/orders/${orderId}/confirm-cash`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ restaurantCode }),
+        body: JSON.stringify({ restaurantCode, cashTendered, cashChange }),
       });
       updateOrderStatus(orderId, 'OPEN');
     } catch (err) {
@@ -338,6 +339,15 @@ function AppShell() {
               printQueue={printQueue}
               setPrintQueue={setPrintQueue}
               now={now}
+              onConfirmCash={handleConfirmCash}
+              onRejectCash={handleRejectCash}
+            />
+          </RoleGuard>
+        } />
+        <Route path="/counter" element={
+          <RoleGuard path="/counter">
+            <CounterScreen
+              onUpdateStatus={handleUpdateStatus}
               onConfirmCash={handleConfirmCash}
               onRejectCash={handleRejectCash}
             />

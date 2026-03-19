@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useKDSStore } from '../stores/kdsStore';
 import { useSessionStore } from '../stores/sessionStore';
+import { nowTimeStr } from '../utils/timezone';
 
 /**
  * 고객용 주문 추적 디스플레이 (풀스크린)
@@ -30,7 +31,7 @@ export default function DisplayScreen() {
     const el = document.getElementById('display-clock');
     if (!el) return;
     const tick = () => {
-      el.textContent = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      el.textContent = nowTimeStr({ hour: 'numeric', minute: '2-digit', second: undefined });
     };
     tick();
     const id = setInterval(tick, 10_000);

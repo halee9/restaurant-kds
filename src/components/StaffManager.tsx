@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSessionStore } from '../stores/sessionStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -57,11 +58,13 @@ function formatMoney(cents: number): string {
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const tz = useSessionStore.getState().timezone || 'America/Los_Angeles';
+  return new Date(iso).toLocaleDateString('en-US', { timeZone: tz, month: 'short', day: 'numeric' });
 }
 
 function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  const tz = useSessionStore.getState().timezone || 'America/Los_Angeles';
+  return new Date(iso).toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit', hour12: true });
 }
 
 function calcWorkedHours(clockIn: string, clockOut: string | null): number {
@@ -108,7 +111,8 @@ function getPayPeriod(offset: number, referenceStart: string | null): { from: Da
   end.setDate(end.getDate() + 13);
   end.setHours(23, 59, 59, 999);
 
-  const label = `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+  const tz = useSessionStore.getState().timezone || 'America/Los_Angeles';
+  const label = `${start.toLocaleDateString('en-US', { timeZone: tz, month: 'short', day: 'numeric' })} – ${end.toLocaleDateString('en-US', { timeZone: tz, month: 'short', day: 'numeric', year: 'numeric' })}`;
   return { from: start, to: end, label };
 }
 
@@ -186,8 +190,9 @@ export default function StaffManager({ restaurantCode, restaurantName, pin, payP
   const fetchEntries = useCallback(async () => {
     setEntriesLoading(true);
     try {
-      const from = period.from.toISOString().split('T')[0];
-      const to = period.to.toISOString().split('T')[0];
+      const tz = useSessionStore.getState().timezone || 'America/Los_Angeles';
+      const from = period.from.toLocaleDateString('en-CA', { timeZone: tz });
+      const to = period.to.toLocaleDateString('en-CA', { timeZone: tz });
       const res = await fetch(
         `${SERVER_URL}/api/staff/${restaurantCode}/time-entries?pin=${encodeURIComponent(pin)}&from=${from}&to=${to}`
       );
@@ -209,7 +214,8 @@ export default function StaffManager({ restaurantCode, restaurantName, pin, payP
   const openAddDialog = () => {
     setEditingStaff(null);
     setFormName(''); setFormPhone(''); setFormEmail('');
-    setFormHireDate(new Date().toISOString().split('T')[0]);
+    const tz = useSessionStore.getState().timezone || 'America/Los_Angeles';
+    setFormHireDate(new Date().toLocaleDateString('en-CA', { timeZone: tz }));
     setFormWage(''); setFormPin(''); setFormActive(true);
     setFormError('');
     setDialogOpen(true);
@@ -590,7 +596,7 @@ export default function StaffManager({ restaurantCode, restaurantName, pin, payP
                     </div>
                     <div className="text-right">
                       <p><strong>Period:</strong> {period.label}</p>
-                      <p><strong>Date:</strong> {new Date().toLocaleDateString('en-US')}</p>
+                      <p><strong>Date:</strong> {new Date().toLocaleDateString('en-US', { timeZone: useSessionStore.getState().timezone || 'America/Los_Angeles' })}</p>
                     </div>
                   </div>
                   <table className="w-full text-sm border-collapse">

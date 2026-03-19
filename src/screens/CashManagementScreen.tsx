@@ -11,6 +11,7 @@ import {
   TrendingUp, TrendingDown, Minus, History,
 } from 'lucide-react';
 import { formatMoney } from '../utils';
+import { todayStr as tzTodayStr, formatDateDisplay } from '../utils/timezone';
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
 
@@ -43,18 +44,17 @@ type CoinKey = typeof COINS[number]['key'];
 type DenomKey = BillKey | CoinKey;
 
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  return tzTodayStr();
 }
 
 function formatDate(dateStr: string) {
-  const d = new Date(dateStr + 'T12:00:00');
-  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  return formatDateDisplay(dateStr, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 }
 
 function shiftDate(dateStr: string, days: number): string {
   const d = new Date(dateStr + 'T12:00:00');
   d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  return d.toLocaleDateString('en-CA');
 }
 
 // ─── 컴포넌트 ─────────────────────────────────────────────────────────────────

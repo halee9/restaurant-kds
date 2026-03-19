@@ -46,7 +46,8 @@ function formatShortMoney(cents: number) {
 }
 
 function toLocalDate(d: Date) {
-  return d.toLocaleDateString('en-CA'); // YYYY-MM-DD
+  const tz = useSessionStore.getState().timezone || 'America/Los_Angeles';
+  return d.toLocaleDateString('en-CA', { timeZone: tz }); // YYYY-MM-DD
 }
 
 function getFromDate(days: number) {
@@ -102,7 +103,8 @@ export default function DashboardScreen() {
   // 기간 설명 텍스트
   const periodLabel = useMemo(() => {
     if (preset === 'custom' && dateRange?.from) {
-      const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const tz = useSessionStore.getState().timezone || 'America/Los_Angeles';
+      const fmt = (d: Date) => d.toLocaleDateString('en-US', { timeZone: tz, month: 'short', day: 'numeric' });
       if (dateRange.to && toLocalDate(dateRange.from) !== toLocalDate(dateRange.to)) {
         return `${fmt(dateRange.from)} – ${fmt(dateRange.to)}`;
       }
@@ -158,9 +160,12 @@ export default function DashboardScreen() {
       totalOrders: 0,
       count: 0,
     }));
+    const tz = useSessionStore.getState().timezone || 'America/Los_Angeles';
     for (const s of sales) {
-      const d = new Date(s.date + 'T12:00:00'); // noon to avoid DST edge
-      const dayIdx = d.getDay();
+      const d = new Date(s.date + 'T12:00:00');
+      const dayStr = d.toLocaleDateString('en-US', { timeZone: tz, weekday: 'short' });
+      const dayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+      const dayIdx = dayMap[dayStr] ?? 0;
       buckets[dayIdx].totalRevenue += s.revenue;
       buckets[dayIdx].totalOrders += s.orders;
       buckets[dayIdx].count += 1;
@@ -188,24 +193,24 @@ export default function DashboardScreen() {
   const gridStroke = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)';
   const tickStyle = { fontSize: 11, fill: isDark ? '#9ca3af' : '#6b7280' };
 
+  const tz = useSessionStore.getState().timezone || 'America/Los_Angeles';
   const formatChartDate = (date: string) => {
-    const d = new Date(date + 'T00:00:00');
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const d = new Date(date + 'T12:00:00');
+    return d.toLocaleDateString('en-US', { timeZone: tz, month: 'short', day: 'numeric' });
   };
 
   const formatWeekDate = (date: string) => {
-    const d = new Date(date + 'T00:00:00');
+    const d = new Date(date + 'T12:00:00');
     const end = new Date(d);
     end.setDate(end.getDate() + 6);
-    const fmt = (dt: Date) => dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const fmt = (dt: Date) => dt.toLocaleDateString('en-US', { timeZone: tz, month: 'short', day: 'numeric' });
     return `${fmt(d)}–${fmt(end)}`;
   };
 
   const formatMonth = (date: string) => {
-    // date is YYYY-MM
     const [y, m] = date.split('-');
     const d = new Date(parseInt(y), parseInt(m) - 1);
-    return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+    return d.toLocaleDateString('en-US', { timeZone: tz, month: 'short', year: '2-digit' });
   };
 
   const todayVsYesterday = summary

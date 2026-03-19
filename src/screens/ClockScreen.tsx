@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Delete, CheckCircle2, LogIn, LogOut, Clock, ArrowLeft, Users, RefreshCw } from 'lucide-react';
 import { useSessionStore } from '../stores/sessionStore';
+import { todayStr, todayDisplay } from '../utils/timezone';
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
 
@@ -421,7 +422,7 @@ export default function ClockScreen() {
           {/* Current time + back to staff view for owner */}
           <div className="flex flex-col items-center gap-1">
             <p className="text-xs text-muted-foreground">
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+              {todayDisplay()}
             </p>
             {role === 'owner' && (
               <button
@@ -474,7 +475,7 @@ function TodayStaffView({ restaurantCode, onShowClockPad }: {
     if (!sessionPin) return;
     setLoading(true);
     try {
-      const today = new Date().toLocaleDateString('en-CA');
+      const today = todayStr();
       const res = await fetch(
         `${SERVER_URL}/api/staff/${restaurantCode}/time-entries?pin=${encodeURIComponent(sessionPin)}&from=${today}&to=${today}`
       );
@@ -517,7 +518,7 @@ function TodayStaffView({ restaurantCode, onShowClockPad }: {
               <Users size={20} /> Today's Clock
             </h1>
             <p className="text-xs text-muted-foreground">
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+              {todayDisplay({ weekday: 'long', month: 'long', day: 'numeric' })}
               {activeCount > 0 && <span className="ml-2 text-emerald-500">● {activeCount} active</span>}
             </p>
           </div>

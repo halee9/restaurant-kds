@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSessionStore } from '../stores/sessionStore';
 import { useKDSStore } from '../stores/kdsStore';
+import { daysAgoStr, todayDisplay } from '../utils/timezone';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -68,9 +69,7 @@ export default function HomeScreen() {
 
       // 매출 정보는 owner만
       if (showRevenue) {
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        const from = yesterday.toISOString().slice(0, 10);
+        const from = daysAgoStr(1);
         promises.push(fetch(`${base}/analytics/${restaurantCode.toLowerCase()}/summary?from=${from}`));
       } else {
         promises.push(Promise.resolve(new Response('null')));
@@ -124,7 +123,7 @@ export default function HomeScreen() {
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground hidden sm:block">
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+              {todayDisplay()}
             </span>
             <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
               <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
