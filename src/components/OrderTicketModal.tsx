@@ -1,4 +1,4 @@
-import QRCode from 'react-qr-code';
+import { QRCodeSVG } from 'qrcode.react';
 import { X, XCircle } from 'lucide-react';
 import type { KDSOrder, MenuDisplayItem, ModifierDisplayItem } from '../types';
 import { formatMoney, formatDateTime, getItemDisplay, getModifierDisplay, normalizeMod } from '../utils';
@@ -54,7 +54,7 @@ export function TicketContent({ order, menuItems, modifiers: modifierList }: {
           <p className="text-7xl font-bold leading-none">{order.displayId}</p>
           <p className="text-sm text-center mt-1">No Bags</p>
         </div>
-        <QRCode value={`${SERVER_URL}/receipt/${order.id}`} size={100} level="L" />
+        <QRCodeSVG value={`${SERVER_URL}/receipt/${order.id}`} size={100} level="L" />
       </div>
 
       <hr className="border-black my-2" />
