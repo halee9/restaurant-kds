@@ -62,7 +62,7 @@ export default function AdminLogin({ onLogin }: Props) {
                 id="code"
                 value={code}
                 onChange={e => setCode(e.target.value.toUpperCase())}
-                placeholder="e.g. MIDORI"
+                placeholder="Restaurant Code"
                 maxLength={8}
                 autoFocus
                 className="text-center text-xl font-bold tracking-widest"
