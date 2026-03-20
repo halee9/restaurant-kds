@@ -17,7 +17,7 @@ export default function RestaurantLogin({ onJoin }: Props) {
 
   // 2단계: PIN 입력
   const [step, setStep] = useState<'code' | 'pin'>('code');
-  const [pendingConfig, setPendingConfig] = useState<{ code: string; name: string; timezone: string } | null>(null);
+  const [pendingConfig, setPendingConfig] = useState<{ code: string; name: string; timezone: string; scheduledActivationMinutes?: number } | null>(null);
 
   const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
 
@@ -39,12 +39,22 @@ export default function RestaurantLogin({ onJoin }: Props) {
 
       if (config.hasPosRoles) {
         // PIN 필요 — 2단계로 전환
-        setPendingConfig({ code: trimmed, name: config.name, timezone: config.timezone ?? 'America/Los_Angeles' });
+        setPendingConfig({ code: trimmed, name: config.name, timezone: config.timezone ?? 'America/Los_Angeles', scheduledActivationMinutes: config.scheduled_activation_minutes });
+        // 서버에서 가져온 scheduled_activation_minutes를 KDS store에 동기화
+        if (config.scheduled_activation_minutes != null) {
+          const { setScheduledActivationMinutes } = await import('../stores/kdsStore').then(m => m.useKDSStore.getState());
+          setScheduledActivationMinutes(config.scheduled_activation_minutes);
+        }
         setStep('pin');
       } else {
         // PIN 없음 — 바로 owner로 진입 (기존 동작)
         localStorage.setItem('kds_restaurant_code', trimmed);
         localStorage.setItem('kds_restaurant_name', config.name);
+        // 서버에서 가져온 scheduled_activation_minutes를 KDS store에 동기화
+        if (config.scheduled_activation_minutes != null) {
+          const { setScheduledActivationMinutes } = await import('../stores/kdsStore').then(m => m.useKDSStore.getState());
+          setScheduledActivationMinutes(config.scheduled_activation_minutes);
+        }
         onJoin(trimmed, config.name, undefined, undefined, undefined, config.timezone ?? 'America/Los_Angeles');
       }
     } catch {

@@ -1,7 +1,10 @@
 import { X, Volume2, VolumeX } from 'lucide-react';
 import { useState } from 'react';
 import { useKDSStore } from '../stores/kdsStore';
+import { useSessionStore } from '../stores/sessionStore';
 import { playTestSound } from '../utils/sounds';
+
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
 
 // 긴급도 단계 표시용
 const URGENCY_ROWS = [
@@ -48,6 +51,7 @@ export default function KDSSettingsPanel({ open, onClose }: Props) {
     urgencyRedMin,    setUrgencyRedMin,
   } = useKDSStore();
 
+  const { restaurantCode, pin } = useSessionStore();
   const [activationInput, setActivationInput] = useState(String(scheduledActivationMinutes));
 
   // 긴급도 임계값 로컬 입력 상태
@@ -102,16 +106,27 @@ export default function KDSSettingsPanel({ open, onClose }: Props) {
               <span className="text-sm text-muted-foreground">min before</span>
               <button
                 className="ml-auto text-xs px-2 py-1 rounded bg-primary text-primary-foreground font-semibold hover:opacity-80 transition-opacity"
-                onClick={() => {
+                onClick={async () => {
                   const v = parseInt(activationInput, 10);
-                  if (!isNaN(v) && v >= 5 && v <= 120) setScheduledActivationMinutes(v);
+                  if (isNaN(v) || v < 5 || v > 120) return;
+                  setScheduledActivationMinutes(v);
+                  // 서버에도 저장 (모든 KDS 동기화)
+                  if (restaurantCode) {
+                    try {
+                      await fetch(`${SERVER_URL}/api/admin/${restaurantCode}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ pin, settings: { scheduled_activation_minutes: v } }),
+                      });
+                    } catch {}
+                  }
                 }}
               >
                 Apply
               </button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Show scheduled orders N minutes before pickup time. (Default: 20 min)
+              Show scheduled orders N minutes before pickup time. (Default: 10 min)
             </p>
           </div>
 

@@ -3,7 +3,7 @@ import type { KDSOrder, OrderStatus, MenuDisplayConfig } from '../types';
 import { isScheduledOrder } from '../utils/isScheduledOrder';
 
 const ACTIVATION_KEY = 'kds_activation_minutes';
-const DEFAULT_ACTIVATION = 20;
+const DEFAULT_ACTIVATION = 10;
 const AUTO_START_KEY = 'kds_auto_start';
 const AUTO_PRINT_KEY = 'kds_auto_print';
 const SOUND_ENABLED_KEY = 'kds_sound_enabled';
