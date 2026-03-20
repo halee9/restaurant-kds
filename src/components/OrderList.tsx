@@ -170,17 +170,17 @@ function ActiveOrderRow({
 
       {/* 주문번호 배지 — 클릭 시 상태 전진 */}
       <div
-        className={`w-14 flex items-center justify-center shrink-0 cursor-pointer hover:brightness-125 transition-all ${badgeClass(order.status)}`}
+        className={`w-20 flex items-center justify-center shrink-0 cursor-pointer hover:brightness-125 transition-all ${badgeClass(order.status)}`}
         onClick={handleAdvance}
         title="Next status"
       >
-        <span className="text-3xl font-black leading-none">
+        <span className="text-5xl font-black leading-none">
           {order.displayId}
         </span>
       </div>
 
       {/* 아이템 — 한 아이템당 한 줄, 옵션 인라인 */}
-      <div className="flex-1 min-w-0 flex flex-col justify-center gap-1 px-3 py-1">
+      <div className="flex-1 min-w-0 flex flex-col justify-center gap-2 px-4 py-2">
         {items.map((item, idx) => {
           const display = getItemDisplay(item.name, menuItems);
           const qty       = Number(item.quantity);
@@ -191,9 +191,9 @@ function ActiveOrderRow({
             return modDisplay.showOnKds;
           }) ?? [];
           return (
-            <div key={idx} className="flex items-center gap-1.5 flex-wrap">
+            <div key={idx} className="flex items-center gap-2 flex-wrap">
               <span
-                className={`px-2.5 py-0.5 rounded-md text-4xl font-black leading-tight inline-flex items-center gap-1.5 transition-all select-none cursor-pointer ${isDone ? 'bg-muted text-muted-foreground' : ''}`}
+                className={`px-3 py-1 rounded-md text-6xl font-black leading-tight inline-flex items-center gap-2 transition-all select-none cursor-pointer ${isDone ? 'bg-muted text-muted-foreground' : ''}`}
                 style={isDone
                   ? undefined
                   : { backgroundColor: display.bgColor, color: display.textColor }
@@ -201,24 +201,24 @@ function ActiveOrderRow({
                 data-done={isDone || undefined}
                 onClick={(e) => handleItemClick(e, idx, qty)}
               >
-                {isDone && <Check className="h-7 w-7 text-green-500 shrink-0" />}
+                {isDone && <Check className="h-10 w-10 text-green-500 shrink-0" />}
                 {display.label}
               </span>
               {qty > 1 && (
                 isDone
-                  ? <span className="text-3xl font-black leading-none tabular-nums text-muted-foreground/40">
+                  ? <span className="text-5xl font-black leading-none tabular-nums text-muted-foreground/40">
                       ×{qty}
                     </span>
                   : doneCount > 0
-                    ? <span className="text-3xl font-black leading-none tabular-nums text-green-600 dark:text-green-400">
+                    ? <span className="text-5xl font-black leading-none tabular-nums text-green-600 dark:text-green-400">
                         {doneCount}/{qty}
                       </span>
-                    : <span className="text-3xl font-black leading-none tabular-nums text-foreground">
+                    : <span className="text-5xl font-black leading-none tabular-nums text-foreground">
                         ×{qty}
                       </span>
               )}
               {item.variationName && (
-                <span className={`text-sm transition-colors ${isDone ? 'text-muted-foreground/30' : 'text-muted-foreground/60'}`}>
+                <span className={`text-lg transition-colors ${isDone ? 'text-muted-foreground/30' : 'text-muted-foreground/60'}`}>
                   ({item.variationName})
                 </span>
               )}
@@ -227,7 +227,7 @@ function ActiveOrderRow({
                 return (
                   <span
                     key={mIdx}
-                    className={`text-sm px-2 py-0.5 rounded border font-medium shrink-0 flex items-center gap-1 transition-all bg-transparent ${
+                    className={`text-xl px-3 py-1 rounded border font-medium shrink-0 flex items-center gap-1.5 transition-all bg-transparent ${
                       isDone
                         ? 'border-border text-muted-foreground/30'
                         : modDisplay.bgColor
@@ -245,7 +245,7 @@ function ActiveOrderRow({
                 );
               })}
               {item.note && (
-                <span className="text-sm text-yellow-800 bg-yellow-100 dark:text-yellow-200 dark:bg-yellow-900/30 px-2 py-0.5 rounded italic">
+                <span className="text-lg text-yellow-800 bg-yellow-100 dark:text-yellow-200 dark:bg-yellow-900/30 px-3 py-1 rounded italic">
                   "{item.note}"
                 </span>
               )}
@@ -253,26 +253,26 @@ function ActiveOrderRow({
           );
         })}
         {order.note && (
-          <div className="text-sm bg-yellow-100 text-yellow-800 border border-yellow-300 dark:bg-yellow-900/40 dark:text-yellow-200 dark:border-yellow-700/40 rounded px-2 py-1 italic">
+          <div className="text-lg bg-yellow-100 text-yellow-800 border border-yellow-300 dark:bg-yellow-900/40 dark:text-yellow-200 dark:border-yellow-700/40 rounded px-3 py-1.5 italic">
             ★ {order.note}
           </div>
         )}
         {isPendingPayment && (
-          <div className="flex items-center gap-2 mt-1">
-            <span className="text-sm font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
-              <Banknote className="h-4 w-4" /> CASH — Collect ${((order.totalMoney ?? 0) / 100).toFixed(2)}
+          <div className="flex items-center gap-3 mt-1">
+            <span className="text-lg font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+              <Banknote className="h-5 w-5" /> CASH — Collect ${((order.totalMoney ?? 0) / 100).toFixed(2)}
             </span>
             <button
-              className="ml-auto text-xs px-2 py-1 rounded border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex items-center gap-1"
+              className="ml-auto text-sm px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex items-center gap-1"
               onClick={(e) => { e.stopPropagation(); onRejectCash?.(order.id); }}
             >
-              <X className="h-3 w-3" /> Cancel
+              <X className="h-4 w-4" /> Cancel
             </button>
             <button
-              className="text-xs px-3 py-1 rounded bg-green-600 hover:bg-green-500 text-white font-bold transition-colors flex items-center gap-1"
+              className="text-sm px-4 py-1.5 rounded bg-green-600 hover:bg-green-500 text-white font-bold transition-colors flex items-center gap-1"
               onClick={(e) => { e.stopPropagation(); onConfirmCash?.(order.id); }}
             >
-              <Banknote className="h-3 w-3" /> Cash Paid
+              <Banknote className="h-4 w-4" /> Cash Paid
             </button>
           </div>
         )}
@@ -282,19 +282,19 @@ function ActiveOrderRow({
       {infoOpen && <OrderTicketModal order={order} onClose={() => setInfoOpen(false)} />}
 
       {/* 소스 · 고객 · 시간 · 프린트 · 정보 · 되돌리기 — 우측 상단 floating */}
-      <div className="absolute top-1.5 right-1.5 flex items-center gap-2 pointer-events-none">
-        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${sourceBadge}`}>
+      <div className="absolute top-2 right-2 flex items-center gap-2.5 pointer-events-none">
+        <span className={`text-xs font-bold px-2 py-0.5 rounded shrink-0 ${sourceBadge}`}>
           {order.source}
         </span>
         {order.duplicateOf && (
-          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 bg-red-600 text-white flex items-center gap-0.5 animate-pulse">
-            <AlertTriangle className="h-3 w-3" /> Dup #{order.duplicateOf}
+          <span className="text-xs font-bold px-2 py-0.5 rounded shrink-0 bg-red-600 text-white flex items-center gap-0.5 animate-pulse">
+            <AlertTriangle className="h-3.5 w-3.5" /> Dup #{order.duplicateOf}
           </span>
         )}
-        <span className="text-sm font-semibold text-blue-300 shrink-0">
+        <span className="text-lg font-semibold text-blue-300 shrink-0">
           {order.displayName}
         </span>
-        <span className={`text-sm font-bold tabular-nums shrink-0 transition-colors ${URGENCY_TIME[urgency]}${!isFinished && urgency === 3 ? ' animate-pulse' : ''}`}>
+        <span className={`text-lg font-bold tabular-nums shrink-0 transition-colors ${URGENCY_TIME[urgency]}${!isFinished && urgency === 3 ? ' animate-pulse' : ''}`}>
           {timeLabel}
         </span>
         <button
@@ -302,14 +302,14 @@ function ActiveOrderRow({
           onClick={(e) => { e.stopPropagation(); onPrint(order); }}
           title="Print ticket"
         >
-          <Printer className="h-3.5 w-3.5" />
+          <Printer className="h-4 w-4" />
         </button>
         <button
           className="no-print opacity-50 hover:opacity-90 transition-opacity pointer-events-auto"
           onClick={(e) => { e.stopPropagation(); setInfoOpen(true); }}
           title="Order info"
         >
-          <Info className="h-3.5 w-3.5" />
+          <Info className="h-4 w-4" />
         </button>
         {prevStatus(order.status) && (
           <button
@@ -317,7 +317,7 @@ function ActiveOrderRow({
             onClick={handleBack}
             title="Go back"
           >
-            <CornerUpLeft className="h-3.5 w-3.5" />
+            <CornerUpLeft className="h-4 w-4" />
           </button>
         )}
       </div>
