@@ -131,6 +131,11 @@ export default function OrderCard({ order, onUpdateStatus, onPrint, onConfirmCas
                   </span>
                 );
               })}
+              {item.note && (
+                <span className="text-sm text-yellow-800 bg-yellow-100 dark:text-yellow-200 dark:bg-yellow-900/30 px-2 py-0.5 rounded italic">
+                  "{item.note}"
+                </span>
+              )}
             </div>
           );
         })}

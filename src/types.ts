@@ -47,6 +47,7 @@ export interface OrderLineItem {
   variationName?: string;
   modifiers?: OrderModifier[];
   totalMoney: number; // cents
+  note?: string;
 }
 
 export interface KDSOrder {

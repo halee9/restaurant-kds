@@ -81,6 +81,9 @@ export function TicketContent({ order, menuItems, modifiers: modifierList }: {
                 </div>
               );
             })}
+            {item.note && (
+              <div className="ml-3 text-xs italic text-gray-700">"{item.note}"</div>
+            )}
           </div>
         ))}
       </div>
