@@ -100,9 +100,12 @@ export default function OrderCard({ order, onUpdateStatus, onPrint, onConfirmCas
 
       {/* Line items */}
       <CardContent className="flex flex-col gap-3 px-5 py-4 border-t border-border">
-        {mergeLineItems(order.lineItems).map((item, idx) => {
+        {(() => {
+          const merged = mergeLineItems(order.lineItems);
+          const visible = merged.filter((i) => getItemDisplay(i.name, menuItems).showOnKds);
+          return visible.length > 0 ? visible : merged;
+        })().map((item, idx) => {
           const display = getItemDisplay(item.name, menuItems);
-          if (!display.showOnKds) return null;
           return (
             <div key={idx} className="flex items-center gap-1.5 flex-wrap">
               <span className="font-black text-xl min-w-[2rem]">{item.quantity}×</span>

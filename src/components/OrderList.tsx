@@ -1,10 +1,25 @@
-import React, { useState } from 'react';
-import { AlertTriangle, Calendar, ChevronDown, ChevronRight, CornerUpLeft, Printer, Check, Info, Banknote, X, Inbox } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { AlertTriangle, Calendar, ChevronDown, ChevronRight, CornerUpLeft, Printer, Check, Info, Banknote, X, Inbox, Clock } from 'lucide-react';
 import type { KDSOrder, OrderStatus } from '../types';
 import { getItemDisplay, getModifierDisplay, mergeLineItems, formatElapsed, formatDuration, getElapsedMinutes } from '../utils';
 import { useKDSStore } from '../stores/kdsStore';
 import { useSessionStore } from '../stores/sessionStore';
 import OrderTicketModal from './OrderTicketModal';
+
+// ── useMediaQuery hook ──────────────────────────────────────────────────────
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia(query).matches : false
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const handler = (e: MediaQueryListEvent) => setMatches(e.matches);
+    mq.addEventListener('change', handler);
+    setMatches(mq.matches);
+    return () => mq.removeEventListener('change', handler);
+  }, [query]);
+  return matches;
+}
 
 // ── 경과 시간 긴급도 ───────────────────────────────────────────────────────
 type Urgency = 0 | 1 | 2 | 3;
@@ -87,9 +102,12 @@ function ActiveOrderRow({
   const { menuDisplayConfig, urgencyYellowMin, urgencyOrangeMin, urgencyRedMin } = useKDSStore();
   const { menuItems, modifiers } = menuDisplayConfig;
 
-  const items = mergeLineItems(order.lineItems).filter(
+  const merged = mergeLineItems(order.lineItems);
+  const visible = merged.filter(
     (item) => getItemDisplay(item.name, menuItems).showOnKds
   );
+  // 전부 숨기면 빈 주문이 되므로, 그 경우 모두 표시
+  const items = visible.length > 0 ? visible : merged;
 
   const sourceBadge = SOURCE_VARIANT[order.source] ?? SOURCE_VARIANT['Unknown'];
 
@@ -163,18 +181,18 @@ function ActiveOrderRow({
 
   return (
     <div
-      className={`relative flex items-stretch border-b transition-all ${isPendingPayment ? 'border-amber-500/40 bg-amber-900/10' : 'border-border even:bg-muted/30'}`}
+      className={`relative flex items-stretch border-b-2 transition-all ${isPendingPayment ? 'border-amber-500/40 bg-amber-900/10' : 'border-foreground/50 even:bg-muted/30'}`}
     >
       {/* 긴급도 바 — 왼쪽 세로 색상 스트라이프 */}
       <div className={`w-1 self-stretch shrink-0 transition-colors duration-500 ${isPendingPayment ? 'bg-amber-500' : URGENCY_BAR[urgency]}`} />
 
       {/* 주문번호 배지 — 클릭 시 상태 전진 */}
       <div
-        className={`w-14 flex items-center justify-center shrink-0 cursor-pointer hover:brightness-125 transition-all ${badgeClass(order.status)}`}
+        className={`w-16 flex items-center justify-center shrink-0 cursor-pointer hover:brightness-125 transition-all ${badgeClass(order.status)}`}
         onClick={handleAdvance}
         title="Next status"
       >
-        <span className="text-3xl font-black leading-none">
+        <span className="text-4xl font-black leading-none">
           {order.displayId}
         </span>
       </div>
@@ -191,9 +209,9 @@ function ActiveOrderRow({
             return modDisplay.showOnKds;
           }) ?? [];
           return (
-            <div key={idx} className="flex items-center gap-1.5 flex-wrap">
+            <div key={idx} className={`flex gap-1.5 flex-wrap ${idx === 0 ? 'items-end' : 'items-center'}`}>
               <span
-                className={`px-3 py-0.5 rounded-md text-5xl font-black leading-tight inline-flex items-center gap-1.5 transition-all select-none cursor-pointer ${isDone ? 'bg-muted text-muted-foreground' : ''}`}
+                className={`px-3 py-0 rounded-md text-6xl font-black leading-none inline-flex items-center gap-1.5 transition-all select-none cursor-pointer ${isDone ? 'bg-muted text-muted-foreground' : ''}`}
                 style={isDone
                   ? undefined
                   : { backgroundColor: display.bgColor, color: display.textColor }
@@ -227,12 +245,12 @@ function ActiveOrderRow({
                 return (
                   <span
                     key={mIdx}
-                    className={`text-base px-2.5 py-0.5 rounded border font-medium shrink-0 flex items-center gap-1 transition-all bg-transparent ${
+                    className={`text-2xl px-2.5 py-0 rounded border-2 font-bold leading-none shrink-0 flex items-center gap-1 transition-all bg-transparent ${
                       isDone
-                        ? 'border-border text-muted-foreground/30'
+                        ? 'border-muted-foreground/30 text-muted-foreground/30'
                         : modDisplay.bgColor
                           ? ''
-                          : 'border-border text-foreground/70'
+                          : 'border-foreground/50 text-foreground'
                     }`}
                     style={!isDone && modDisplay.bgColor
                       ? { borderColor: modDisplay.bgColor, color: modDisplay.bgColor }
@@ -281,46 +299,174 @@ function ActiveOrderRow({
       {/* 주문 티켓 모달 */}
       {infoOpen && <OrderTicketModal order={order} onClose={() => setInfoOpen(false)} />}
 
-      {/* 소스 · 고객 · 시간 · 프린트 · 정보 · 되돌리기 — 우측 상단 floating */}
-      <div className="absolute top-2 right-2 flex items-center gap-2.5 pointer-events-none">
-        <span className={`text-xs font-bold px-2 py-0.5 rounded shrink-0 ${sourceBadge}`}>
-          {order.source}
-        </span>
-        {order.duplicateOf && (
-          <span className="text-xs font-bold px-2 py-0.5 rounded shrink-0 bg-red-600 text-white flex items-center gap-0.5 animate-pulse">
-            <AlertTriangle className="h-3.5 w-3.5" /> Dup #{order.duplicateOf}
-          </span>
-        )}
-        <span className="text-lg font-semibold text-blue-300 shrink-0">
-          {order.displayName}
-        </span>
-        <span className={`text-lg font-bold tabular-nums shrink-0 transition-colors ${URGENCY_TIME[urgency]}${!isFinished && urgency === 3 ? ' animate-pulse' : ''}`}>
-          {timeLabel}
-        </span>
+      {/* 프린트 · 소스 · 인포 · 이름 · 시간 · 되돌리기 — 우측 상단 floating */}
+      <div className="absolute top-2 right-2 flex items-center gap-3 pointer-events-none">
         <button
           className="no-print opacity-50 hover:opacity-90 transition-opacity pointer-events-auto"
           onClick={(e) => { e.stopPropagation(); onPrint(order); }}
           title="Print ticket"
         >
-          <Printer className="h-4 w-4" />
+          <Printer className="h-5 w-5" />
         </button>
+        <span className={`font-bold px-2 py-0.5 rounded shrink-0 ${sourceBadge}`} style={{ fontSize: '16px' }}>
+          {order.source}
+        </span>
+        {order.duplicateOf && (
+          <span className="text-base font-bold px-2 py-0.5 rounded shrink-0 bg-red-600 text-white flex items-center gap-0.5 animate-pulse">
+            <AlertTriangle className="h-4 w-4" /> Dup #{order.duplicateOf}
+          </span>
+        )}
         <button
           className="no-print opacity-50 hover:opacity-90 transition-opacity pointer-events-auto"
           onClick={(e) => { e.stopPropagation(); setInfoOpen(true); }}
           title="Order info"
         >
-          <Info className="h-4 w-4" />
+          <Info className="h-5 w-5" />
         </button>
+        <span className="text-xl font-semibold text-blue-300 shrink-0">
+          {order.displayName}
+        </span>
+        <span className={`text-xl font-bold tabular-nums shrink-0 transition-colors ${URGENCY_TIME[urgency]}${!isFinished && urgency === 3 ? ' animate-pulse' : ''}`}>
+          {timeLabel}
+        </span>
         {prevStatus(order.status) && (
           <button
             className="opacity-50 hover:opacity-100 transition-opacity pointer-events-auto"
             onClick={handleBack}
             title="Go back"
           >
-            <CornerUpLeft className="h-4 w-4" />
+            <CornerUpLeft className="h-5 w-5" />
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+// ── 3번째 칼럼용 Compact 주문 행 (Counter OrderRow 스타일) ───────────────────
+function CompactOrderRow({
+  order,
+  onUpdateStatus,
+  onPrint,
+}: {
+  order: KDSOrder;
+  onUpdateStatus: Props['onUpdateStatus'];
+  onPrint: Props['onPrint'];
+}) {
+  const { menuDisplayConfig } = useKDSStore();
+  const { menuItems } = menuDisplayConfig;
+
+  const merged = mergeLineItems(order.lineItems);
+  const visible = merged.filter((item) => getItemDisplay(item.name, menuItems).showOnKds);
+  const items = visible.length > 0 ? visible : merged;
+
+  const sourceBadge = SOURCE_VARIANT[order.source] ?? SOURCE_VARIANT['Unknown'];
+  const isPendingPayment = order.status === 'PENDING_PAYMENT';
+  const isScheduled = order.isScheduled && order.pickupAt;
+  const [infoOpen, setInfoOpen] = React.useState(false);
+
+  function handleAdvance(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (isPendingPayment) return;
+    const next = nextStatus(order.status);
+    if (next) onUpdateStatus(order.id, next);
+  }
+
+  // pickupAt 포맷 (HH:MM)
+  const pickupLabel = isScheduled
+    ? new Date(order.pickupAt!).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+    : null;
+
+  return (
+    <div className="w-full px-3 py-2.5 rounded-lg text-left transition-colors hover:bg-secondary/70 cursor-pointer">
+      {/* Top row: order info */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={handleAdvance}
+          className={`text-lg font-bold w-10 text-center rounded-lg transition-colors py-1 ${
+            order.status === 'READY'
+              ? 'text-green-500 hover:bg-green-500/20'
+              : isPendingPayment
+                ? 'text-amber-400'
+                : 'text-foreground hover:bg-secondary'
+          }`}
+          title="Next status"
+        >
+          {order.displayId}
+        </button>
+        <span className={`text-[10px] font-bold text-white px-1.5 py-0.5 rounded ${sourceBadge}`}>
+          {order.source}
+        </span>
+        <span className="font-medium text-sm flex-1 truncate">{order.displayName}</span>
+        {isPendingPayment && (
+          <span className="font-semibold text-sm text-amber-400">${((order.totalMoney ?? 0) / 100).toFixed(2)}</span>
+        )}
+        {pickupLabel && (
+          <span className="text-xs font-bold text-purple-400 flex items-center gap-0.5">
+            <Clock className="h-3 w-3" />{pickupLabel}
+          </span>
+        )}
+        {order.status === 'READY' && <Check size={18} className="text-green-500" />}
+        {isPendingPayment && <Banknote size={18} className="text-amber-500" />}
+        <button
+          className="opacity-40 hover:opacity-90 transition-opacity p-1"
+          onClick={(e) => { e.stopPropagation(); onPrint(order); }}
+          title="Print ticket"
+        >
+          <Printer className="h-3.5 w-3.5" />
+        </button>
+        <button
+          className="opacity-40 hover:opacity-90 transition-opacity p-1"
+          onClick={(e) => { e.stopPropagation(); setInfoOpen(true); }}
+          title="Order info"
+        >
+          <Info className="h-3.5 w-3.5" />
+        </button>
+        {prevStatus(order.status) && (
+          <button
+            className="opacity-40 hover:opacity-90 transition-opacity p-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              const prev = prevStatus(order.status);
+              if (prev) onUpdateStatus(order.id, prev);
+            }}
+            title="Go back"
+          >
+            <CornerUpLeft className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+      {/* Items row */}
+      <div className="ml-13 mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+        {items.map((item, idx) => {
+          const display = getItemDisplay(item.name, menuItems);
+          return (
+            <span key={idx}>
+              {display.label}{Number(item.quantity) > 1 ? ` ×${item.quantity}` : ''}
+            </span>
+          );
+        })}
+      </div>
+      {order.note && (
+        <div className="ml-13 mt-0.5 text-xs text-yellow-400 italic truncate">★ {order.note}</div>
+      )}
+      {infoOpen && <OrderTicketModal order={order} onClose={() => setInfoOpen(false)} />}
+    </div>
+  );
+}
+
+// ── Queue 섹션 헤더 ─────────────────────────────────────────────────────────
+function QueueSectionHeader({ title, count, color, icon }: { title: string; count: number; color: string; icon?: React.ReactNode }) {
+  if (count === 0) return null;
+  return (
+    <div className="px-4 py-2 border-b border-border flex items-center gap-2">
+      {icon}
+      <span className={`text-sm font-semibold ${color}`}>{title}</span>
+      <span className={`min-w-[20px] h-5 flex items-center justify-center rounded-full text-white text-xs font-bold px-1.5 ${
+        color.includes('amber') ? 'bg-amber-500' : color.includes('purple') ? 'bg-purple-600' : 'bg-green-600'
+      }`}>
+        {count}
+      </span>
     </div>
   );
 }
@@ -380,6 +526,7 @@ function ScheduledSection({ orders, onUpdateStatus, onPrint }: {
 // ── 메인 컴포넌트 ────────────────────────────────────────────────────────────
 export default function OrderList({ activeOrders, scheduledOrders, readyOrders, completedOrders, cancelledOrders, onUpdateStatus, onPrint, onConfirmCash, onRejectCash }: Props) {
   const { activeTab } = useSessionStore();
+  const isWide = useMediaQuery('(min-width: 1400px)');
 
   // ── Active 탭 ─────────────────────────────────────────────────────────────
   if (activeTab === 'active') {
@@ -402,11 +549,17 @@ export default function OrderList({ activeOrders, scheduledOrders, readyOrders, 
       (a.pickupAt ?? '').localeCompare(b.pickupAt ?? '')
     );
 
+    // Queue 칼럼용: Cash 미결제 (active 중 PENDING_PAYMENT)
+    const pendingCashOrders = sorted.filter((o) => o.status === 'PENDING_PAYMENT');
+    const sortedReady = [...readyOrders].sort((a, b) =>
+      (a.readyAt ?? a.createdAt).localeCompare(b.readyAt ?? b.createdAt)
+    );
+
     return (
       <div className="flex flex-col h-full min-h-0 overflow-hidden no-print">
-        <div className="flex flex-col sm:flex-row flex-1 min-h-0 overflow-hidden">
+        <div className={`flex flex-col sm:flex-row flex-1 min-h-0 overflow-hidden`}>
           {/* 왼쪽: Kiosk / Cash */}
-          <div className="flex-1 flex flex-col min-h-0 border-b sm:border-b-0 sm:border-r border-border">
+          <div className={`flex flex-col min-h-0 border-b sm:border-b-0 sm:border-r border-border ${isWide ? 'w-[40%]' : 'flex-1'}`}>
             <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border/60 bg-muted/20 shrink-0">
               <span className="text-[11px] font-bold text-muted-foreground tracking-widest uppercase">Kiosk / Cash</span>
               {kioskOrders.length > 0 && (
@@ -426,8 +579,8 @@ export default function OrderList({ activeOrders, scheduledOrders, readyOrders, 
             </div>
           </div>
 
-          {/* 오른쪽: Pickup / Delivery */}
-          <div className="flex-1 flex flex-col min-h-0">
+          {/* 가운데: Pickup / Delivery */}
+          <div className={`flex flex-col min-h-0 ${isWide ? 'w-[40%] border-r border-border' : 'flex-1'}`}>
             <ColumnHeader title="Pickup / Delivery" count={onlineOrders.length} />
             <div className="flex-1 overflow-y-auto min-h-0">
               {onlineOrders.length === 0
@@ -438,10 +591,52 @@ export default function OrderList({ activeOrders, scheduledOrders, readyOrders, 
               }
             </div>
           </div>
+
+          {/* 오른쪽: Queue (wide screen only) */}
+          {isWide && (
+            <div className="w-[20%] flex flex-col min-h-0 overflow-hidden">
+              <ColumnHeader title="Queue" count={pendingCashOrders.length + sortedScheduled.length + sortedReady.length} />
+              <div className="flex-1 overflow-y-auto min-h-0">
+                {/* Cash 미결제 */}
+                <QueueSectionHeader title="Cash Due" count={pendingCashOrders.length} color="text-amber-400" icon={<Banknote size={16} className="text-amber-500" />} />
+                {pendingCashOrders.length > 0 && (
+                  <div className="p-2 space-y-0.5">
+                    {pendingCashOrders.map((o) => (
+                      <CompactOrderRow key={o.id} order={o} onUpdateStatus={onUpdateStatus} onPrint={onPrint} />
+                    ))}
+                  </div>
+                )}
+
+                {/* Scheduled */}
+                <QueueSectionHeader title="Scheduled" count={sortedScheduled.length} color="text-purple-400" icon={<Calendar size={16} className="text-purple-400" />} />
+                {sortedScheduled.length > 0 && (
+                  <div className="p-2 space-y-0.5">
+                    {sortedScheduled.map((o) => (
+                      <CompactOrderRow key={o.id} order={o} onUpdateStatus={onUpdateStatus} onPrint={onPrint} />
+                    ))}
+                  </div>
+                )}
+
+                {/* Ready */}
+                <QueueSectionHeader title="Ready" count={sortedReady.length} color="text-green-400" icon={<Check size={16} className="text-green-500" />} />
+                {sortedReady.length > 0 && (
+                  <div className="p-2 space-y-0.5">
+                    {sortedReady.map((o) => (
+                      <CompactOrderRow key={o.id} order={o} onUpdateStatus={onUpdateStatus} onPrint={onPrint} />
+                    ))}
+                  </div>
+                )}
+
+                {pendingCashOrders.length + sortedScheduled.length + sortedReady.length === 0 && (
+                  <EmptyState label="No Queued Orders" />
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Scheduled 섹션 */}
-        {sortedScheduled.length > 0 && (
+        {/* Scheduled 섹션 (narrow screen only) */}
+        {!isWide && sortedScheduled.length > 0 && (
           <ScheduledSection orders={sortedScheduled} onUpdateStatus={onUpdateStatus} onPrint={onPrint} />
         )}
       </div>
