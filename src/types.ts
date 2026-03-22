@@ -1,3 +1,45 @@
+// ─── Restaurant Config ───────────────────────────────────────────────────────
+
+export interface RestaurantConfig {
+  id: string;
+  restaurant_code: string;
+  name: string;
+  square_location_id: string;
+  square_environment: string;
+  tax_rate: number;
+  tip_percentages: number[];
+  settings_pin: string;
+  enable_tipping: boolean;
+  session_timeout_minutes: number;
+  logo_style?: string;
+  pay_period_start?: string | null;
+  timezone?: string;
+  hours?: { open: string; close: string; days: number[] } | null;
+  theme?: {
+    primaryColor: string;
+    accentColor?: string;
+    bgColor?: string;
+    textColor?: string;
+    logoUrl?: string;
+    heroImageUrl?: string;
+    fontFamily?: string;
+  } | null;
+  enable_landing?: boolean;
+  enable_cash_payment?: boolean;
+  enable_coin_counting?: boolean;
+  description?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  social_links?: {
+    instagram?: string;
+    facebook?: string;
+    yelp?: string;
+    google_maps?: string;
+  } | null;
+}
+
+// ─── Order Types ─────────────────────────────────────────────────────────────
+
 export type OrderSource = 'Kiosk' | 'Online' | 'DoorDash' | 'Uber Eats' | 'Grubhub' | 'Square Online' | 'Unknown';
 export type PosRole = 'staff' | 'manager' | 'owner';
 

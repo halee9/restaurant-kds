@@ -1,21 +1,35 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import type { RestaurantConfig } from './AdminPage';
+import { useAdminStore } from '../../stores/adminStore';
 
-interface Props {
-  onLogin: (config: RestaurantConfig, pin: string) => void;
-}
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
 
-export default function AdminLogin({ onLogin }: Props) {
+export default function AdminLogin() {
   const [code, setCode] = useState('');
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const login = useAdminStore((s) => s.login);
 
-  const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
+  // 자동 로그인: /admin?code=midori&pin=1234
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const autoCode = params.get('code');
+    const autoPin = params.get('pin');
+    if (!autoCode || !autoPin) return;
+
+    fetch(`${SERVER_URL}/api/admin/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: autoCode, pin: autoPin }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((cfg) => { if (cfg) login(cfg, autoPin); })
+      .catch(() => {});
+  }, [login]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,7 +41,7 @@ export default function AdminLogin({ onLogin }: Props) {
     setError('');
 
     try {
-      const res = await fetch(`${serverUrl}/api/admin/login`, {
+      const res = await fetch(`${SERVER_URL}/api/admin/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: trimmedCode, pin: trimmedPin }),
@@ -38,7 +52,7 @@ export default function AdminLogin({ onLogin }: Props) {
       if (!res.ok) { setError('Server error. Please try again.'); return; }
 
       const config = await res.json();
-      onLogin(config, trimmedPin);
+      login(config, trimmedPin);
     } catch {
       setError('Cannot connect to server.');
     } finally {
@@ -51,34 +65,34 @@ export default function AdminLogin({ onLogin }: Props) {
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <div className="text-4xl mb-2">⚙️</div>
-          <CardTitle>Admin Dashboard</CardTitle>
+          <CardTitle>Admin</CardTitle>
           <CardDescription>Enter your restaurant code and PIN</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="code">Restaurant Code</Label>
+              <Label htmlFor="admin-code">Restaurant Code</Label>
               <Input
-                id="code"
+                id="admin-code"
                 value={code}
-                onChange={e => setCode(e.target.value.toUpperCase())}
+                onChange={(e) => setCode(e.target.value.toUpperCase())}
                 placeholder="e.g. MIDORI"
                 maxLength={8}
                 autoFocus
-                className="text-center text-xl font-bold tracking-widest"
+                className="text-center text-xl font-bold tracking-widest h-12"
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="pin">Settings PIN</Label>
+              <Label htmlFor="admin-pin">Settings PIN</Label>
               <Input
-                id="pin"
+                id="admin-pin"
                 type="password"
                 value={pin}
-                onChange={e => setPin(e.target.value)}
+                onChange={(e) => setPin(e.target.value)}
                 placeholder="••••"
                 maxLength={8}
-                className="text-center text-xl tracking-widest"
+                className="text-center text-xl tracking-widest h-12"
               />
             </div>
 
@@ -86,7 +100,11 @@ export default function AdminLogin({ onLogin }: Props) {
               <p className="text-destructive text-sm text-center">{error}</p>
             )}
 
-            <Button type="submit" disabled={!code.trim() || !pin.trim() || loading} className="w-full">
+            <Button
+              type="submit"
+              disabled={!code.trim() || !pin.trim() || loading}
+              className="w-full h-12 text-base"
+            >
               {loading ? 'Verifying...' : 'Login'}
             </Button>
           </form>

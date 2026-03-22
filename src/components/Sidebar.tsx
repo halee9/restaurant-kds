@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, ChefHat, ShoppingBag, Clock, ClipboardList, Banknote, BarChart3, Monitor, Settings, LogOut, Sun, Moon } from 'lucide-react';
+import { Home, ChefHat, ShoppingBag, Clock, ClipboardList, Banknote, Monitor, Settings, LogOut, Sun, Moon } from 'lucide-react';
 import { useSessionStore } from '../stores/sessionStore';
 import { useKDSStore } from '../stores/kdsStore';
 import { getVisibleNavPaths, getVisibleBottomItems } from '../utils/roles';
@@ -37,7 +37,6 @@ export default function Sidebar() {
     { icon: <Clock size={22} />, label: 'Clock', path: '/clock' },
     { icon: <ClipboardList size={22} />, label: 'Orders', path: '/orders' },
     { icon: <Banknote size={22} />, label: 'Cash', path: '/cash', badge: counts.pendingPayment },
-    { icon: <BarChart3 size={22} />, label: 'Dashboard', path: '/dashboard' },
   ];
   const navItems = allNavItems.filter((item) => visiblePaths.has(item.path));
 
@@ -45,7 +44,7 @@ export default function Sidebar() {
   const visibleBottom = getVisibleBottomItems(role);
   const allBottomItems: NavItem[] = [
     { icon: <Monitor size={22} />, label: 'Display', path: '/display', action: 'window' },
-    { icon: <Settings size={22} />, label: 'Admin', path: '/admin' },
+    { icon: <Settings size={22} />, label: 'Admin', path: '/admin', action: 'window' },
     { icon: <LogOut size={22} />, label: 'Logout', path: '', action: 'logout' },
   ];
   const bottomItems = allBottomItems.filter((item) => visibleBottom.has(item.label));

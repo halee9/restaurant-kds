@@ -86,8 +86,13 @@ function formatTime(iso: string) {
   });
 }
 
-export default function OrdersScreen() {
-  const restaurantCode = useSessionStore((s) => s.restaurantCode);
+interface OrdersScreenProps {
+  restaurantCode?: string | null;
+}
+
+export default function OrdersScreen({ restaurantCode: propCode }: OrdersScreenProps = {}) {
+  const storeCode = useSessionStore((s) => s.restaurantCode);
+  const restaurantCode = propCode ?? storeCode;
 
   // data
   const [orders, setOrders] = useState<KDSOrder[]>([]);

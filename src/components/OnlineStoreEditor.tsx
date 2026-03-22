@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import type { RestaurantConfig } from './AdminPage';
+import type { RestaurantConfig } from '../types';
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
 const ONLINE_STORE_URL = import.meta.env.VITE_ONLINE_STORE_URL || 'https://order.ziggl.app';

@@ -9,15 +9,23 @@ import StatusBar from './components/StatusBar';
 import OrderList from './components/OrderList';
 import SilentPrintTicket from './components/SilentPrintTicket';
 import RestaurantLogin from './components/RestaurantLogin';
-import AdminPage from './components/AdminPage';
 import KDSSettingsPanel from './components/KDSSettingsPanel';
+import AdminAuthGuard from './components/admin/AdminAuthGuard';
+import AdminLayout from './components/admin/AdminLayout';
+import AdminDashboardPage from './screens/admin/AdminDashboardPage';
+import AdminOrdersPage from './screens/admin/AdminOrdersPage';
+import AdminCashPage from './screens/admin/AdminCashPage';
+import AdminStaffPage from './screens/admin/AdminStaffPage';
+import AdminMoreScreen from './screens/admin/AdminMoreScreen';
+import AdminSettingsPage from './screens/admin/AdminSettingsPage';
+import AdminMenuDisplayPage from './screens/admin/AdminMenuDisplayPage';
+import AdminOnlineStorePage from './screens/admin/AdminOnlineStorePage';
 import ActiveTabView from './components/ActiveTabView';
 import ScheduledTabView from './components/ScheduledTabView';
 import ReadyTabView from './components/ReadyTabView';
 import DoneTabView from './components/DoneTabView';
 import Layout from './components/Layout';
 import OrdersScreen from './screens/OrdersScreen';
-import DashboardScreen from './screens/DashboardScreen';
 import DisplayScreen from './screens/DisplayScreen';
 import HomeScreen from './screens/HomeScreen';
 import ClockScreen from './screens/ClockScreen';
@@ -338,10 +346,21 @@ function AppShell() {
       {/* Display: 풀스크린, 사이드바 없음 */}
       <Route path="/display" element={<RoleGuard path="/display"><DisplayScreen /></RoleGuard>} />
 
-      {/* Admin: 자체 PIN 인증 있으므로 역할 가드 불필요 */}
-      <Route path="/admin" element={<AdminPage />} />
+      {/* Admin: 독립 PIN 인증, 모바일 퍼스트 레이아웃 */}
+      <Route path="/admin" element={<AdminAuthGuard />}>
+        <Route element={<AdminLayout />}>
+          <Route index element={<AdminDashboardPage />} />
+          <Route path="orders" element={<AdminOrdersPage />} />
+          <Route path="cash" element={<AdminCashPage />} />
+          <Route path="staff" element={<AdminStaffPage />} />
+          <Route path="more" element={<AdminMoreScreen />} />
+          <Route path="settings" element={<AdminSettingsPage />} />
+          <Route path="menu-display" element={<AdminMenuDisplayPage />} />
+          <Route path="online-store" element={<AdminOnlineStorePage />} />
+        </Route>
+      </Route>
 
-      {/* 메인 레이아웃 (사이드바 포함) */}
+      {/* 메인 POS 레이아웃 (사이드바 포함) */}
       <Route element={<Layout />}>
         <Route index element={<RoleGuard path="/"><HomeScreen /></RoleGuard>} />
         <Route path="/kds" element={
@@ -369,7 +388,6 @@ function AppShell() {
         <Route path="/clock" element={<RoleGuard path="/clock"><ClockScreen /></RoleGuard>} />
         <Route path="/orders" element={<RoleGuard path="/orders"><OrdersScreen /></RoleGuard>} />
         <Route path="/cash" element={<RoleGuard path="/cash"><CashManagementScreen /></RoleGuard>} />
-        <Route path="/dashboard" element={<RoleGuard path="/dashboard"><DashboardScreen /></RoleGuard>} />
       </Route>
     </Routes>
   );
@@ -390,7 +408,19 @@ export default function App() {
   if (!restaurantCode) {
     return (
       <Routes>
-        <Route path="/admin" element={<AdminPage />} />
+        {/* Admin: POS 로그인 없이도 접근 가능 */}
+        <Route path="/admin" element={<AdminAuthGuard />}>
+          <Route element={<AdminLayout />}>
+            <Route index element={<AdminDashboardPage />} />
+            <Route path="orders" element={<AdminOrdersPage />} />
+            <Route path="cash" element={<AdminCashPage />} />
+            <Route path="staff" element={<AdminStaffPage />} />
+            <Route path="more" element={<AdminMoreScreen />} />
+            <Route path="settings" element={<AdminSettingsPage />} />
+            <Route path="menu-display" element={<AdminMenuDisplayPage />} />
+            <Route path="online-store" element={<AdminOnlineStorePage />} />
+          </Route>
+        </Route>
         <Route path="*" element={<RestaurantLogin onJoin={login} />} />
       </Routes>
     );

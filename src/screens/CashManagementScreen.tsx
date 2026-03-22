@@ -58,8 +58,13 @@ function shiftDate(dateStr: string, days: number): string {
 }
 
 // ─── 컴포넌트 ─────────────────────────────────────────────────────────────────
-export default function CashManagementScreen() {
-  const restaurantCode = useSessionStore((s) => s.restaurantCode)!;
+interface CashManagementScreenProps {
+  restaurantCode?: string | null;
+}
+
+export default function CashManagementScreen({ restaurantCode: propCode }: CashManagementScreenProps = {}) {
+  const storeCode = useSessionStore((s) => s.restaurantCode);
+  const restaurantCode = (propCode ?? storeCode)!;
   const pendingPaymentCount = useKDSStore((s) => s.orderCounts)().pendingPayment;
 
   const [date, setDate] = useState(todayStr);

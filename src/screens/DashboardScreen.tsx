@@ -1,19 +1,15 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSessionStore } from '../stores/sessionStore';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
-import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
-import { Calendar } from '../components/ui/calendar';
 import {
   BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import {
-  DollarSign, ShoppingBag, TrendingUp, XCircle,
-  RefreshCw, ArrowUp, ArrowDown, CalendarIcon,
+  ChevronLeft, ChevronRight, RefreshCw,
 } from 'lucide-react';
-import type { DateRange } from 'react-day-picker';
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
 
@@ -24,15 +20,48 @@ interface Summary {
   avgOrderValue: number;
   cancelRate: number;
   totalTips: number;
+  totalTax: number;
+  totalCommission: number;
+  netRevenue: number;
   canceledOrders: number;
-  today: { revenue: number; orders: number };
-  yesterday: { revenue: number; orders: number };
 }
 
-interface SalesPoint { date: string; revenue: number; orders: number; tips?: number }
 interface ItemData { name: string; quantity: number; revenue: number }
-interface SourceData { source: string; orders: number; revenue: number }
+interface SourceData { source: string; orders: number; revenue: number; commission: number }
 interface HourlyData { hour: number; orders: number; revenue: number }
+
+interface CompareEntry {
+  year: number;
+  date?: string;
+  from?: string;
+  to?: string;
+  label: string;
+  revenue: number;
+  netRevenue: number;
+  orders: number;
+  tips: number;
+  commission: number;
+  tax: number;
+}
+
+interface ForecastDay {
+  date: string;
+  dayOfWeek: string;
+  predictedRevenue: number;
+  predictedOrders: number;
+  weather?: { tempMax: number; precipitation: number; condition: string; adjustment: number };
+}
+
+interface WeeklyBreakdown {
+  date: string;
+  dayOfWeek: string;
+  revenue: number;
+  netRevenue: number;
+  orders: number;
+  tips: number;
+}
+
+interface SalesPoint { date: string; revenue: number; orders: number }
 
 // ─── 유틸 ───────────────────────────────────────────────────────────────────
 function formatMoney(cents: number) {
@@ -45,179 +74,228 @@ function formatShortMoney(cents: number) {
   return `$${(cents / 100).toFixed(0)}`;
 }
 
-function toLocalDate(d: Date) {
-  const tz = useSessionStore.getState().timezone || 'America/Los_Angeles';
-  return d.toLocaleDateString('en-CA', { timeZone: tz }); // YYYY-MM-DD
+function getTz() {
+  return useSessionStore.getState().timezone || 'America/Los_Angeles';
 }
 
-function getFromDate(days: number) {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return toLocalDate(d);
+function todayStr() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: getTz() });
+}
+
+// 날짜에서 N일 이동
+function shiftDate(dateStr: string, days: number): string {
+  const d = new Date(dateStr + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+// 날짜의 요일 이름
+function dayName(dateStr: string): string {
+  return new Date(dateStr + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'short' });
+}
+
+// 날짜 포맷: Mar 21
+function shortDate(dateStr: string): string {
+  return new Date(dateStr + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+// 주의 월요일 구하기
+function getMonday(dateStr: string): string {
+  const d = new Date(dateStr + 'T12:00:00Z');
+  const dow = d.getUTCDay();
+  const offset = dow === 0 ? -6 : 1 - dow;
+  d.setUTCDate(d.getUTCDate() + offset);
+  return d.toISOString().slice(0, 10);
 }
 
 const COLORS = ['#8b5cf6', '#06b6d4', '#f59e0b', '#10b981', '#ef4444', '#6366f1', '#ec4899'];
-const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-type PresetKey = '0' | '7' | '14' | '30' | 'custom';
-
-const PRESETS: { value: PresetKey; label: string }[] = [
-  { value: '0', label: 'Today' },
-  { value: '7', label: '7D' },
-  { value: '14', label: '14D' },
-  { value: '30', label: '30D' },
-];
 
 // ─── 컴포넌트 ────────────────────────────────────────────────────────────────
-export default function DashboardScreen() {
-  const restaurantCode = useSessionStore((s) => s.restaurantCode);
-  const theme = useSessionStore((s) => s.theme);
+interface DashboardScreenProps {
+  restaurantCode?: string | null;
+  theme?: 'light' | 'dark';
+}
+
+export default function DashboardScreen({ restaurantCode: propCode, theme: propTheme }: DashboardScreenProps = {}) {
+  const storeCode = useSessionStore((s) => s.restaurantCode);
+  const storeTheme = useSessionStore((s) => s.theme);
+  const restaurantCode = propCode ?? storeCode;
+  const theme = propTheme ?? storeTheme;
   const isDark = theme === 'dark';
 
-  const [preset, setPreset] = useState<PresetKey>('0');
-  const [dateRange, setDateRange] = useState<DateRange | undefined>();
-  const [calendarOpen, setCalendarOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('daily');
+  const [loading, setLoading] = useState(false);
 
-  const [summary, setSummary] = useState<Summary | null>(null);
-  const [sales, setSales] = useState<SalesPoint[]>([]);
-  const [weeklySales, setWeeklySales] = useState<SalesPoint[]>([]);
-  const [monthlySales, setMonthlySales] = useState<SalesPoint[]>([]);
-  const [items, setItems] = useState<ItemData[]>([]);
-  const [sources, setSources] = useState<SourceData[]>([]);
-  const [hourly, setHourly] = useState<HourlyData[]>([]);
+  // Daily state
+  const [dailyDate, setDailyDate] = useState(todayStr());
+  const [dailySummary, setDailySummary] = useState<Summary | null>(null);
+  const [dailyCompare, setDailyCompare] = useState<CompareEntry[]>([]);
+  const [dailyHourly, setDailyHourly] = useState<HourlyData[]>([]);
+  const [dailySources, setDailySources] = useState<SourceData[]>([]);
+  const [dailyItems, setDailyItems] = useState<ItemData[]>([]);
 
-  // 날짜 범위 계산
-  const { from, to } = useMemo(() => {
-    if (preset === 'custom' && dateRange?.from) {
-      return {
-        from: toLocalDate(dateRange.from),
-        to: dateRange.to ? toLocalDate(dateRange.to) : toLocalDate(dateRange.from),
-      };
-    }
-    const days = parseInt(preset);
-    return { from: getFromDate(days), to: undefined as string | undefined };
-  }, [preset, dateRange]);
+  // Weekly state
+  const [weekStart, setWeekStart] = useState(getMonday(todayStr()));
+  const [weeklySummary, setWeeklySummary] = useState<Summary | null>(null);
+  const [weeklyBreakdown, setWeeklyBreakdown] = useState<WeeklyBreakdown[]>([]);
+  const [weeklyCompare, setWeeklyCompare] = useState<CompareEntry[]>([]);
+  const [weeklyHourly, setWeeklyHourly] = useState<HourlyData[]>([]);
+  const [weeklySources, setWeeklySources] = useState<SourceData[]>([]);
+  const [weeklyItems, setWeeklyItems] = useState<ItemData[]>([]);
+  const [weeklyTrend, setWeeklyTrend] = useState<SalesPoint[]>([]);
 
-  // 기간 설명 텍스트
-  const periodLabel = useMemo(() => {
-    if (preset === 'custom' && dateRange?.from) {
-      const tz = useSessionStore.getState().timezone || 'America/Los_Angeles';
-      const fmt = (d: Date) => d.toLocaleDateString('en-US', { timeZone: tz, month: 'short', day: 'numeric' });
-      if (dateRange.to && toLocalDate(dateRange.from) !== toLocalDate(dateRange.to)) {
-        return `${fmt(dateRange.from)} – ${fmt(dateRange.to)}`;
-      }
-      return fmt(dateRange.from);
-    }
-    return PRESETS.find((p) => p.value === preset)?.label || '';
-  }, [preset, dateRange]);
+  // Forecast state
+  const [forecast, setForecast] = useState<ForecastDay[]>([]);
+  const [forecastWeekTotal, setForecastWeekTotal] = useState<{ revenue: number; orders: number; commission: number } | null>(null);
+  const [forecastCorrelation, setForecastCorrelation] = useState<{ dayOfWeek: string; clearDays: number; rainDays: number; rainImpact: number }[]>([]);
+  const [forecastRecentWeeks, setForecastRecentWeeks] = useState<SalesPoint[]>([]);
 
-  const fetchAll = useCallback(async () => {
-    if (!restaurantCode) return;
+  // Monthly state
+  const [monthStr, setMonthStr] = useState(todayStr().slice(0, 7)); // YYYY-MM
+  const [monthlySummary, setMonthlySummary] = useState<Summary | null>(null);
+  const [monthlyCompare, setMonthlyCompare] = useState<CompareEntry[]>([]);
+  const [monthlyHourly, setMonthlyHourly] = useState<HourlyData[]>([]);
+  const [monthlySources, setMonthlySources] = useState<SourceData[]>([]);
+  const [monthlyItems, setMonthlyItems] = useState<ItemData[]>([]);
+
+  const base = restaurantCode ? `${SERVER_URL}/api/analytics/${restaurantCode.toLowerCase()}` : '';
+
+  // ─── Daily fetch ─────────────────────────────────────────────────────────
+  const fetchDaily = useCallback(async () => {
+    if (!base) return;
     setLoading(true);
-    const base = `${SERVER_URL}/api/analytics/${restaurantCode.toLowerCase()}`;
-    const params = to ? `from=${from}&to=${to}` : `from=${from}`;
-
     try {
-      const [sumRes, salesRes, weekRes, monthRes, itemsRes, srcRes, hourRes] = await Promise.all([
+      const params = `from=${dailyDate}&to=${dailyDate}`;
+      const [sumRes, compRes, hourRes, srcRes, itemRes] = await Promise.all([
         fetch(`${base}/summary?${params}`),
-        fetch(`${base}/sales?${params}&groupBy=day`),
-        fetch(`${base}/sales?${params}&groupBy=week`),
-        fetch(`${base}/sales?${params}&groupBy=month`),
-        fetch(`${base}/items?${params}&limit=8`),
-        fetch(`${base}/sources?${params}`),
+        fetch(`${base}/compare?date=${dailyDate}&mode=day`),
         fetch(`${base}/hourly?${params}`),
+        fetch(`${base}/sources?${params}`),
+        fetch(`${base}/items?${params}&limit=8`),
       ]);
-
-      const [sumData, salesData, weekData, monthData, itemsData, srcData, hourData] = await Promise.all([
-        sumRes.json(), salesRes.json(), weekRes.json(), monthRes.json(),
-        itemsRes.json(), srcRes.json(), hourRes.json(),
+      const [sum, comp, hour, src, items] = await Promise.all([
+        sumRes.json(), compRes.json(), hourRes.json(), srcRes.json(), itemRes.json(),
       ]);
-
-      setSummary(sumData);
-      setSales(salesData.data || []);
-      setWeeklySales(weekData.data || []);
-      setMonthlySales(monthData.data || []);
-      setItems(itemsData.data || []);
-      setSources(srcData.data || []);
-      setHourly((hourData.data || []).filter((h: HourlyData) => h.orders > 0));
+      setDailySummary(sum);
+      setDailyCompare(comp.comparisons || []);
+      setDailyHourly((hour.data || []).filter((h: HourlyData) => h.orders > 0));
+      setDailySources(src.data || []);
+      setDailyItems(items.data || []);
     } catch (err) {
-      console.error('[Dashboard] fetch failed:', err);
+      console.error('[Dashboard] daily fetch failed:', err);
     } finally {
       setLoading(false);
     }
-  }, [restaurantCode, from, to]);
+  }, [base, dailyDate]);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  // ─── Weekly fetch ────────────────────────────────────────────────────────
+  const fetchWeekly = useCallback(async () => {
+    if (!base) return;
+    setLoading(true);
+    try {
+      const weekEnd = shiftDate(weekStart, 6);
+      const params = `from=${weekStart}&to=${weekEnd}`;
+      const midWeek = shiftDate(weekStart, 3);
+      // Core data first (fast), forecast + trend in background (slow)
+      const [sumRes, compRes, hourRes, srcRes, itemRes] = await Promise.all([
+        fetch(`${base}/summary?${params}`),
+        fetch(`${base}/compare?date=${midWeek}&mode=week`),
+        fetch(`${base}/hourly?${params}`),
+        fetch(`${base}/sources?${params}`),
+        fetch(`${base}/items?${params}&limit=8`),
+      ]);
+      const [sum, comp, hour, src, items] = await Promise.all([
+        sumRes.json(), compRes.json(), hourRes.json(), srcRes.json(), itemRes.json(),
+      ]);
+      setWeeklySummary(sum);
+      setWeeklyBreakdown(comp.dailyBreakdown || []);
+      setWeeklyCompare(comp.comparisons || []);
+      setWeeklyHourly((hour.data || []).filter((h: HourlyData) => h.orders > 0));
+      setWeeklySources(src.data || []);
+      setWeeklyItems(items.data || []);
 
-  // 요일별 데이터 (daily sales 기반 클라이언트 집계)
-  const dayOfWeekData = useMemo(() => {
-    const buckets = Array.from({ length: 7 }, (_, i) => ({
-      day: DAY_NAMES[i],
-      dayIndex: i,
-      totalRevenue: 0,
-      totalOrders: 0,
-      count: 0,
-    }));
-    const tz = useSessionStore.getState().timezone || 'America/Los_Angeles';
-    for (const s of sales) {
-      const d = new Date(s.date + 'T12:00:00');
-      const dayStr = d.toLocaleDateString('en-US', { timeZone: tz, weekday: 'short' });
-      const dayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-      const dayIdx = dayMap[dayStr] ?? 0;
-      buckets[dayIdx].totalRevenue += s.revenue;
-      buckets[dayIdx].totalOrders += s.orders;
-      buckets[dayIdx].count += 1;
+      // Trend in background (don't block UI)
+      fetch(`${base}/sales?from=${shiftDate(weekStart, -16 * 7)}&to=${weekEnd}&groupBy=week`).then(r => r.json()).then(trend => {
+        setWeeklyTrend(trend.data || []);
+      }).catch(() => {});
+    } catch (err) {
+      console.error('[Dashboard] weekly fetch failed:', err);
+    } finally {
+      setLoading(false);
     }
-    // Mon-Sun 순서로 정렬
-    const ordered = [...buckets.slice(1), buckets[0]];
-    return ordered.map((b) => ({
-      day: b.day,
-      avgRevenue: b.count > 0 ? Math.round(b.totalRevenue / b.count) : 0,
-      avgOrders: b.count > 0 ? Math.round((b.totalOrders / b.count) * 10) / 10 : 0,
-      totalRevenue: b.totalRevenue,
-      totalOrders: b.totalOrders,
-      days: b.count,
-    }));
-  }, [sales]);
+  }, [base, weekStart]);
 
-  // 차트 공통 스타일
+  // ─── Monthly fetch ───────────────────────────────────────────────────────
+  const fetchMonthly = useCallback(async () => {
+    if (!base) return;
+    setLoading(true);
+    try {
+      const [y, m] = monthStr.split('-').map(Number);
+      const fromDate = `${monthStr}-01`;
+      const lastDay = new Date(y, m, 0).getDate();
+      const toDate = `${monthStr}-${String(lastDay).padStart(2, '0')}`;
+      const params = `from=${fromDate}&to=${toDate}`;
+      const [sumRes, compRes, hourRes, srcRes, itemRes] = await Promise.all([
+        fetch(`${base}/summary?${params}`),
+        fetch(`${base}/compare?date=${monthStr}&mode=month`),
+        fetch(`${base}/hourly?${params}`),
+        fetch(`${base}/sources?${params}`),
+        fetch(`${base}/items?${params}&limit=8`),
+      ]);
+      const [sum, comp, hour, src, items] = await Promise.all([
+        sumRes.json(), compRes.json(), hourRes.json(), srcRes.json(), itemRes.json(),
+      ]);
+      setMonthlySummary(sum);
+      setMonthlyCompare(comp.comparisons || []);
+      setMonthlyHourly((hour.data || []).filter((h: HourlyData) => h.orders > 0));
+      setMonthlySources(src.data || []);
+      setMonthlyItems(items.data || []);
+    } catch (err) {
+      console.error('[Dashboard] monthly fetch failed:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [base, monthStr]);
+
+  // ─── Forecast fetch ──────────────────────────────────────────────────────
+  const fetchForecast = useCallback(async () => {
+    if (!base) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${base}/forecast`);
+      const fc = await res.json();
+      setForecast((fc.forecast || []).filter((f: ForecastDay) => f.predictedRevenue > 0));
+      setForecastWeekTotal(fc.weekTotal || null);
+      setForecastCorrelation(fc.weatherCorrelation || []);
+      setForecastRecentWeeks(fc.recentWeeks || []);
+    } catch (err) {
+      console.error('[Dashboard] forecast fetch failed:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [base]);
+
+  // Tab 변경 시 데이터 fetch
+  useEffect(() => {
+    if (activeTab === 'daily') fetchDaily();
+    else if (activeTab === 'weekly') fetchWeekly();
+    else if (activeTab === 'monthly') fetchMonthly();
+    else if (activeTab === 'forecast') fetchForecast();
+  }, [activeTab, fetchDaily, fetchWeekly, fetchMonthly, fetchForecast]);
+
+  // 차트 스타일
   const tooltipStyle = {
     background: isDark ? '#1f2937' : '#fff',
     border: `1px solid ${isDark ? '#374151' : '#e5e7eb'}`,
-    borderRadius: 8,
-    fontSize: 12,
+    borderRadius: 8, fontSize: 12,
     color: isDark ? '#f9fafb' : '#111827',
   };
   const gridStroke = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)';
   const tickStyle = { fontSize: 11, fill: isDark ? '#9ca3af' : '#6b7280' };
 
-  const tz = useSessionStore.getState().timezone || 'America/Los_Angeles';
-  const formatChartDate = (date: string) => {
-    const d = new Date(date + 'T12:00:00');
-    return d.toLocaleDateString('en-US', { timeZone: tz, month: 'short', day: 'numeric' });
-  };
-
-  const formatWeekDate = (date: string) => {
-    const d = new Date(date + 'T12:00:00');
-    const end = new Date(d);
-    end.setDate(end.getDate() + 6);
-    const fmt = (dt: Date) => dt.toLocaleDateString('en-US', { timeZone: tz, month: 'short', day: 'numeric' });
-    return `${fmt(d)}–${fmt(end)}`;
-  };
-
-  const formatMonth = (date: string) => {
-    const [y, m] = date.split('-');
-    const d = new Date(parseInt(y), parseInt(m) - 1);
-    return d.toLocaleDateString('en-US', { timeZone: tz, month: 'short', year: '2-digit' });
-  };
-
-  const todayVsYesterday = summary
-    ? summary.yesterday.revenue > 0
-      ? Math.round(((summary.today.revenue - summary.yesterday.revenue) / summary.yesterday.revenue) * 100)
-      : summary.today.revenue > 0 ? 100 : 0
-    : 0;
+  const canGoForwardDaily = dailyDate < todayStr();
+  const canGoForwardWeek = shiftDate(weekStart, 7) <= getMonday(todayStr());
+  const canGoForwardMonth = monthStr < todayStr().slice(0, 7);
 
   return (
     <div className="h-full overflow-auto bg-background">
@@ -225,300 +303,280 @@ export default function DashboardScreen() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-bold text-foreground">Dashboard</h1>
-          <div className="flex items-center gap-1.5">
-            {PRESETS.map((p) => (
-              <Button
-                key={p.value}
-                variant={preset === p.value ? 'default' : 'outline'}
-                size="sm"
-                className="h-7 px-2.5 text-xs"
-                onClick={() => { setPreset(p.value); setDateRange(undefined); }}
-              >
-                {p.label}
-              </Button>
-            ))}
-            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant={preset === 'custom' ? 'default' : 'outline'}
-                  size="sm"
-                  className="h-7 px-2 text-xs"
-                >
-                  <CalendarIcon size={13} />
-                  {preset === 'custom' && periodLabel && (
-                    <span className="ml-1 max-w-[120px] truncate">{periodLabel}</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="end">
-                <Calendar
-                  mode="range"
-                  selected={dateRange}
-                  onSelect={(range) => {
-                    setDateRange(range);
-                    if (range?.from) {
-                      setPreset('custom');
-                      if (range.to) setCalendarOpen(false);
-                    }
-                  }}
-                  numberOfMonths={1}
-                  disabled={{ after: new Date() }}
-                />
-              </PopoverContent>
-            </Popover>
-            <Button variant="outline" size="sm" className="h-7 px-2" onClick={fetchAll} disabled={loading}>
-              <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
-            </Button>
-          </div>
+          <Button variant="outline" size="sm" className="h-7 px-2" onClick={() => {
+            if (activeTab === 'daily') fetchDaily();
+            else if (activeTab === 'weekly') fetchWeekly();
+            else fetchMonthly();
+          }} disabled={loading}>
+            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+          </Button>
         </div>
 
-        {/* Summary Cards */}
-        {summary && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <SummaryCard
-              label="Revenue"
-              value={formatMoney(summary.totalRevenue)}
-              icon={<DollarSign size={16} />}
-              sub={`Today: ${formatMoney(summary.today.revenue)}`}
-              trend={todayVsYesterday}
-            />
-            <SummaryCard
-              label="Orders"
-              value={String(summary.totalOrders)}
-              icon={<ShoppingBag size={16} />}
-              sub={`Today: ${summary.today.orders}`}
-            />
-            <SummaryCard
-              label="Avg. Order"
-              value={formatMoney(summary.avgOrderValue)}
-              icon={<TrendingUp size={16} />}
-              sub={`Tips: ${formatMoney(summary.totalTips)}`}
-            />
-            <SummaryCard
-              label="Cancel Rate"
-              value={`${summary.cancelRate}%`}
-              icon={<XCircle size={16} />}
-              sub={`${summary.canceledOrders} canceled`}
-              negative
-            />
-          </div>
-        )}
-
-        {/* Analysis Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="w-full justify-start">
             <TabsTrigger value="daily">Daily</TabsTrigger>
             <TabsTrigger value="weekly">Weekly</TabsTrigger>
             <TabsTrigger value="monthly">Monthly</TabsTrigger>
-            <TabsTrigger value="dow">Day of Week</TabsTrigger>
+            <TabsTrigger value="forecast">Forecast</TabsTrigger>
           </TabsList>
 
-          {/* ─── Daily Tab ─── */}
+          {/* ═══════════════════ DAILY TAB ═══════════════════ */}
           <TabsContent value="daily" className="space-y-4 mt-4">
-            {/* Sales Trend */}
-            <Card className="p-4 bg-card border-border">
-              <h3 className="text-sm font-medium text-foreground mb-3">Daily Sales</h3>
-              <div className="h-[220px] sm:h-[260px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={sales} margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
-                    <XAxis dataKey="date" tickFormatter={formatChartDate} tick={tickStyle} />
-                    <YAxis tickFormatter={formatShortMoney} tick={tickStyle} />
-                    <Tooltip
-                      contentStyle={tooltipStyle}
-                      labelFormatter={(l: any) => formatChartDate(String(l))}
-                      formatter={(v: any, n: any) => [n === 'revenue' ? formatMoney(Number(v)) : v, n === 'revenue' ? 'Revenue' : 'Orders']}
-                    />
-                    <Bar dataKey="revenue" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </Card>
+            {/* Date nav */}
+            <DateNav
+              label={`${shortDate(dailyDate)} (${dayName(dailyDate)})`}
+              onPrev={() => setDailyDate(shiftDate(dailyDate, -1))}
+              onNext={() => setDailyDate(shiftDate(dailyDate, 1))}
+              canNext={canGoForwardDaily}
+            />
 
-            {/* Sources + Items */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <SourcesChart sources={sources} tooltipStyle={tooltipStyle} />
-              <ItemsChart items={items} />
-            </div>
-
-            {/* Hourly */}
-            <Card className="p-4 bg-card border-border">
-              <h3 className="text-sm font-medium text-foreground mb-3">Hourly Pattern</h3>
-              <div className="h-[200px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={hourly} margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
-                    <XAxis dataKey="hour" tickFormatter={(h) => h < 12 ? `${h || 12}a` : `${h === 12 ? 12 : h - 12}p`} tick={tickStyle} />
-                    <YAxis tick={tickStyle} />
-                    <Tooltip
-                      contentStyle={tooltipStyle}
-                      labelFormatter={(h: any) => { const hour = Number(h); return hour === 0 ? '12:00 AM' : hour < 12 ? `${hour}:00 AM` : hour === 12 ? '12:00 PM' : `${hour - 12}:00 PM`; }}
-                      formatter={(v: any, n: any) => [n === 'revenue' ? formatMoney(Number(v)) : v, n === 'revenue' ? 'Revenue' : 'Orders']}
-                    />
-                    <Bar dataKey="orders" fill="#10b981" radius={[3, 3, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </Card>
+            {dailySummary && (
+              <>
+                <SummaryCards summary={dailySummary} />
+                <CompareTable comparisons={dailyCompare} label="Same day of week" current={dailySummary ? { revenue: dailySummary.totalRevenue, netRevenue: dailySummary.netRevenue, orders: dailySummary.totalOrders, tips: dailySummary.totalTips } : undefined} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <HourlyChart data={dailyHourly} tooltipStyle={tooltipStyle} gridStroke={gridStroke} tickStyle={tickStyle} />
+                  <SourcesChart sources={dailySources} tooltipStyle={tooltipStyle} />
+                </div>
+                <ItemsChart items={dailyItems} />
+              </>
+            )}
           </TabsContent>
 
-          {/* ─── Weekly Tab ─── */}
+          {/* ═══════════════════ WEEKLY TAB ═══════════════════ */}
           <TabsContent value="weekly" className="space-y-4 mt-4">
-            {/* This Week vs Last Week */}
-            {weeklySales.length >= 2 && (
-              <div className="grid grid-cols-2 gap-3">
-                <Card className="p-3 bg-card border-border">
-                  <span className="text-xs text-muted-foreground">This Week</span>
-                  <div className="text-xl font-bold text-foreground mt-1">
-                    {formatMoney(weeklySales[weeklySales.length - 1]?.revenue || 0)}
+            <DateNav
+              label={`${shortDate(weekStart)} – ${shortDate(shiftDate(weekStart, 6))}`}
+              onPrev={() => setWeekStart(shiftDate(weekStart, -7))}
+              onNext={() => setWeekStart(shiftDate(weekStart, 7))}
+              canNext={canGoForwardWeek}
+            />
+
+            {weeklySummary && (
+              <>
+                <SummaryCards summary={weeklySummary} />
+
+                {/* Daily breakdown */}
+                <Card className="p-4 bg-card border-border">
+                  <h3 className="text-sm font-medium text-foreground mb-3">Daily Breakdown</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                          <th className="py-2 pr-3">Day</th>
+                          <th className="py-2 pr-3 text-right">Revenue</th>
+                          <th className="py-2 pr-3 text-right">Net</th>
+                          <th className="py-2 pr-3 text-right">Orders</th>
+                          <th className="py-2 text-right">Tips</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {weeklyBreakdown.map((d) => (
+                          <tr key={d.date} className="border-b border-border/50">
+                            <td className="py-1.5 pr-3 text-foreground text-xs">{d.dayOfWeek} {shortDate(d.date)}</td>
+                            <td className="py-1.5 pr-3 text-right text-foreground">{formatMoney(d.revenue)}</td>
+                            <td className="py-1.5 pr-3 text-right text-muted-foreground">{formatMoney(d.netRevenue)}</td>
+                            <td className="py-1.5 pr-3 text-right text-foreground">{d.orders}</td>
+                            <td className="py-1.5 text-right text-muted-foreground">{formatMoney(d.tips)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                  <span className="text-xs text-muted-foreground">
-                    {weeklySales[weeklySales.length - 1]?.orders || 0} orders
-                  </span>
                 </Card>
-                <Card className="p-3 bg-card border-border">
-                  <span className="text-xs text-muted-foreground">Last Week</span>
-                  <div className="text-xl font-bold text-foreground mt-1">
-                    {formatMoney(weeklySales[weeklySales.length - 2]?.revenue || 0)}
-                  </div>
-                  <span className="text-xs text-muted-foreground">
-                    {weeklySales[weeklySales.length - 2]?.orders || 0} orders
-                  </span>
+
+                <CompareTable comparisons={weeklyCompare} label="Same week in previous years" current={weeklySummary ? { revenue: weeklySummary.totalRevenue, netRevenue: weeklySummary.netRevenue, orders: weeklySummary.totalOrders, tips: weeklySummary.totalTips } : undefined} />
+
+
+                {/* Weekly trend chart */}
+                {weeklyTrend.length > 0 && (
+                  <Card className="p-4 bg-card border-border">
+                    <h3 className="text-sm font-medium text-foreground mb-3">Weekly Revenue Trend</h3>
+                    <div className="h-[200px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={weeklyTrend} margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+                          <XAxis dataKey="date" tickFormatter={(d) => shortDate(d)} tick={tickStyle} />
+                          <YAxis tickFormatter={formatShortMoney} tick={tickStyle} />
+                          <Tooltip contentStyle={tooltipStyle}
+                            labelFormatter={(l: any) => `Week of ${shortDate(String(l))}`}
+                            formatter={(v: any) => [formatMoney(Number(v)), 'Revenue']}
+                          />
+                          <Bar dataKey="revenue" fill="#06b6d4" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </Card>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <HourlyChart data={weeklyHourly} tooltipStyle={tooltipStyle} gridStroke={gridStroke} tickStyle={tickStyle} />
+                  <SourcesChart sources={weeklySources} tooltipStyle={tooltipStyle} />
+                </div>
+                <ItemsChart items={weeklyItems} />
+              </>
+            )}
+          </TabsContent>
+
+          {/* ═══════════════════ MONTHLY TAB ═══════════════════ */}
+          <TabsContent value="monthly" className="space-y-4 mt-4">
+            <DateNav
+              label={(() => {
+                const [y, m] = monthStr.split('-').map(Number);
+                return new Date(y, m - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+              })()}
+              onPrev={() => {
+                const [y, m] = monthStr.split('-').map(Number);
+                const prev = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`;
+                setMonthStr(prev);
+              }}
+              onNext={() => {
+                const [y, m] = monthStr.split('-').map(Number);
+                const next = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
+                setMonthStr(next);
+              }}
+              canNext={canGoForwardMonth}
+            />
+
+            {monthlySummary && (
+              <>
+                <SummaryCards summary={monthlySummary} />
+                <CompareTable comparisons={monthlyCompare} label="Same month in previous years" current={monthlySummary ? { revenue: monthlySummary.totalRevenue, netRevenue: monthlySummary.netRevenue, orders: monthlySummary.totalOrders, tips: monthlySummary.totalTips } : undefined} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <HourlyChart data={monthlyHourly} tooltipStyle={tooltipStyle} gridStroke={gridStroke} tickStyle={tickStyle} />
+                  <SourcesChart sources={monthlySources} tooltipStyle={tooltipStyle} />
+                </div>
+                <ItemsChart items={monthlyItems} />
+              </>
+            )}
+          </TabsContent>
+
+          {/* ═══════════════════ FORECAST TAB ═══════════════════ */}
+          <TabsContent value="forecast" className="space-y-4 mt-4">
+            <div className="text-center text-sm text-muted-foreground">
+              Next 7 days from {shortDate(shiftDate(todayStr(), 1))}
+            </div>
+
+            {/* Week total */}
+            {forecastWeekTotal && (
+              <div className="grid grid-cols-3 gap-3">
+                <Card className="p-3 bg-card border-border text-center">
+                  <span className="text-xs text-muted-foreground">Est. Revenue</span>
+                  <div className="text-lg font-bold text-foreground mt-1">{formatMoney(forecastWeekTotal.revenue)}</div>
+                </Card>
+                <Card className="p-3 bg-card border-border text-center">
+                  <span className="text-xs text-muted-foreground">Est. Orders</span>
+                  <div className="text-lg font-bold text-foreground mt-1">{forecastWeekTotal.orders}</div>
+                </Card>
+                <Card className="p-3 bg-card border-border text-center">
+                  <span className="text-xs text-muted-foreground">Est. Commission</span>
+                  <div className="text-lg font-bold text-foreground mt-1">{formatMoney(forecastWeekTotal.commission)}</div>
                 </Card>
               </div>
             )}
 
-            <Card className="p-4 bg-card border-border">
-              <h3 className="text-sm font-medium text-foreground mb-3">Weekly Sales</h3>
-              <div className="h-[260px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={weeklySales} margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
-                    <XAxis dataKey="date" tickFormatter={formatWeekDate} tick={tickStyle} />
-                    <YAxis tickFormatter={formatShortMoney} tick={tickStyle} />
-                    <Tooltip
-                      contentStyle={tooltipStyle}
-                      labelFormatter={(l: any) => `Week of ${formatWeekDate(String(l))}`}
-                      formatter={(v: any, n: any) => [n === 'revenue' ? formatMoney(Number(v)) : v, n === 'revenue' ? 'Revenue' : 'Orders']}
-                    />
-                    <Bar dataKey="revenue" fill="#06b6d4" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </Card>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <SourcesChart sources={sources} tooltipStyle={tooltipStyle} />
-              <ItemsChart items={items} />
-            </div>
-          </TabsContent>
-
-          {/* ─── Monthly Tab ─── */}
-          <TabsContent value="monthly" className="space-y-4 mt-4">
-            <Card className="p-4 bg-card border-border">
-              <h3 className="text-sm font-medium text-foreground mb-3">Monthly Sales</h3>
-              <div className="h-[260px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthlySales} margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
-                    <XAxis dataKey="date" tickFormatter={formatMonth} tick={tickStyle} />
-                    <YAxis tickFormatter={formatShortMoney} tick={tickStyle} />
-                    <Tooltip
-                      contentStyle={tooltipStyle}
-                      labelFormatter={(l: any) => formatMonth(String(l))}
-                      formatter={(v: any, n: any) => [n === 'revenue' ? formatMoney(Number(v)) : v, n === 'revenue' ? 'Revenue' : 'Orders']}
-                    />
-                    <Bar dataKey="revenue" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </Card>
-
-            {/* Monthly table */}
-            <Card className="p-4 bg-card border-border">
-              <h3 className="text-sm font-medium text-foreground mb-3">Monthly Breakdown</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                      <th className="py-2 pr-4">Month</th>
-                      <th className="py-2 pr-4 text-right">Orders</th>
-                      <th className="py-2 pr-4 text-right">Revenue</th>
-                      <th className="py-2 text-right">Avg/Order</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {monthlySales.map((m) => (
-                      <tr key={m.date} className="border-b border-border/50">
-                        <td className="py-2 pr-4 text-foreground">{formatMonth(m.date)}</td>
-                        <td className="py-2 pr-4 text-right text-foreground">{m.orders}</td>
-                        <td className="py-2 pr-4 text-right text-foreground">{formatMoney(m.revenue)}</td>
-                        <td className="py-2 text-right text-muted-foreground">
-                          {m.orders > 0 ? formatMoney(Math.round(m.revenue / m.orders)) : '—'}
-                        </td>
+            {/* Daily forecast */}
+            {forecast.length > 0 && (
+              <Card className="p-4 bg-card border-border">
+                <h3 className="text-sm font-medium text-foreground mb-3">Daily Forecast</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                        <th className="py-2 pr-3">Day</th>
+                        <th className="py-2 pr-3 text-right">Revenue</th>
+                        <th className="py-2 pr-3 text-right">Orders</th>
+                        <th className="py-2 text-right">Weather</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
+                    </thead>
+                    <tbody>
+                      {forecast.map((f) => (
+                        <tr key={f.date} className="border-b border-border/50">
+                          <td className="py-1.5 pr-3 text-foreground text-xs">{f.dayOfWeek} {shortDate(f.date)}</td>
+                          <td className="py-1.5 pr-3 text-right text-foreground">{formatMoney(f.predictedRevenue)}</td>
+                          <td className="py-1.5 pr-3 text-right text-muted-foreground">{f.predictedOrders}</td>
+                          <td className="py-1.5 text-right text-xs text-muted-foreground">
+                            {f.weather ? (
+                              <>
+                                {f.weather.condition} {f.weather.tempMax.toFixed(0)}°C
+                                {f.weather.precipitation > 0 && ` 💧${f.weather.precipitation.toFixed(0)}mm`}
+                                {f.weather.adjustment !== 0 && (
+                                  <span className={f.weather.adjustment < 0 ? 'text-red-400' : 'text-emerald-400'}>
+                                    {' '}{f.weather.adjustment > 0 ? '+' : ''}{f.weather.adjustment}%
+                                  </span>
+                                )}
+                              </>
+                            ) : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <SourcesChart sources={sources} tooltipStyle={tooltipStyle} />
-              <ItemsChart items={items} />
-            </div>
-          </TabsContent>
+            {/* Recent weeks trend */}
+            {forecastRecentWeeks.length > 0 && (
+              <Card className="p-4 bg-card border-border">
+                <h3 className="text-sm font-medium text-foreground mb-3">Recent Weekly Trend</h3>
+                <div className="h-[180px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={forecastRecentWeeks} margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+                      <XAxis dataKey="week" tickFormatter={(d) => shortDate(d)} tick={tickStyle} />
+                      <YAxis tickFormatter={formatShortMoney} tick={tickStyle} />
+                      <Tooltip contentStyle={tooltipStyle}
+                        labelFormatter={(l: any) => `Week of ${shortDate(String(l))}`}
+                        formatter={(v: any) => [formatMoney(Number(v)), 'Revenue']}
+                      />
+                      <Bar dataKey="revenue" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+            )}
 
-          {/* ─── Day of Week Tab ─── */}
-          <TabsContent value="dow" className="space-y-4 mt-4">
-            <Card className="p-4 bg-card border-border">
-              <h3 className="text-sm font-medium text-foreground mb-3">Average Revenue by Day of Week</h3>
-              <div className="h-[260px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={dayOfWeekData} margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
-                    <XAxis dataKey="day" tick={tickStyle} />
-                    <YAxis tickFormatter={formatShortMoney} tick={tickStyle} />
-                    <Tooltip
-                      contentStyle={tooltipStyle}
-                      formatter={(v: any, n: any) => [
-                        n === 'avgRevenue' ? formatMoney(Number(v)) : v,
-                        n === 'avgRevenue' ? 'Avg Revenue' : 'Avg Orders',
-                      ]}
-                    />
-                    <Bar dataKey="avgRevenue" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </Card>
-
-            <Card className="p-4 bg-card border-border">
-              <h3 className="text-sm font-medium text-foreground mb-3">Day of Week Breakdown</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                      <th className="py-2 pr-4">Day</th>
-                      <th className="py-2 pr-4 text-right">Days</th>
-                      <th className="py-2 pr-4 text-right">Avg Orders</th>
-                      <th className="py-2 pr-4 text-right">Avg Revenue</th>
-                      <th className="py-2 text-right">Total Revenue</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dayOfWeekData.map((d) => (
-                      <tr key={d.day} className="border-b border-border/50">
-                        <td className="py-2 pr-4 font-medium text-foreground">{d.day}</td>
-                        <td className="py-2 pr-4 text-right text-muted-foreground">{d.days}</td>
-                        <td className="py-2 pr-4 text-right text-foreground">{d.avgOrders}</td>
-                        <td className="py-2 pr-4 text-right text-foreground">{formatMoney(d.avgRevenue)}</td>
-                        <td className="py-2 text-right text-muted-foreground">{formatMoney(d.totalRevenue)}</td>
+            {/* Weather correlation */}
+            {forecastCorrelation.length > 0 && (
+              <Card className="p-4 bg-card border-border">
+                <h3 className="text-sm font-medium text-foreground mb-3">Weather Impact (all-time)</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                        <th className="py-2 pr-3">Day</th>
+                        <th className="py-2 pr-3 text-right">Clear</th>
+                        <th className="py-2 pr-3 text-right">Rain/Snow</th>
+                        <th className="py-2 text-right">Impact</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
+                    </thead>
+                    <tbody>
+                      {forecastCorrelation.map((c) => (
+                        <tr key={c.dayOfWeek} className="border-b border-border/50">
+                          <td className="py-1.5 pr-3 text-foreground text-xs">{c.dayOfWeek}</td>
+                          <td className="py-1.5 pr-3 text-right text-muted-foreground">{c.clearDays} days</td>
+                          <td className="py-1.5 pr-3 text-right text-muted-foreground">{c.rainDays} days</td>
+                          <td className="py-1.5 text-right text-xs">
+                            {c.rainImpact === 0 ? (
+                              <span className="text-muted-foreground">—</span>
+                            ) : (
+                              <span className={c.rainImpact < 0 ? 'text-red-400' : 'text-emerald-400'}>
+                                {c.rainImpact > 0 ? '+' : ''}{c.rainImpact}%
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
+
+            {forecast.length === 0 && !loading && (
+              <div className="text-center py-8 text-muted-foreground text-sm">Loading forecast...</div>
+            )}
           </TabsContent>
         </Tabs>
       </div>
@@ -526,48 +584,179 @@ export default function DashboardScreen() {
   );
 }
 
-// ─── 공유 차트 컴포넌트 ──────────────────────────────────────────────────────
+// ─── 공유 컴포넌트 ──────────────────────────────────────────────────────────
 
-function SourcesChart({ sources, tooltipStyle }: {
-  sources: SourceData[];
+function DateNav({ label, onPrev, onNext, canNext }: {
+  label: string;
+  onPrev: () => void;
+  onNext: () => void;
+  canNext: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-center gap-3">
+      <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={onPrev}>
+        <ChevronLeft size={16} />
+      </Button>
+      <span className="text-sm font-medium text-foreground min-w-[180px] text-center">{label}</span>
+      <Button variant="outline" size="sm" className="h-8 w-8 p-0" onClick={onNext} disabled={!canNext}>
+        <ChevronRight size={16} />
+      </Button>
+    </div>
+  );
+}
+
+function SummaryCards({ summary }: { summary: Summary }) {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <Card className="p-3 bg-card border-border">
+        <span className="text-xs text-muted-foreground">Revenue</span>
+        <div className="text-xl font-bold text-foreground mt-1">{formatMoney(summary.totalRevenue)}</div>
+      </Card>
+      <Card className="p-3 bg-card border-border">
+        <span className="text-xs text-muted-foreground">Net Revenue</span>
+        <div className="text-xl font-bold text-foreground mt-1">{formatMoney(summary.netRevenue)}</div>
+        <div className="text-[10px] text-muted-foreground mt-0.5">
+          Tax {formatMoney(summary.totalTax)} · Fee {formatMoney(summary.totalCommission)}
+        </div>
+      </Card>
+      <Card className="p-3 bg-card border-border">
+        <span className="text-xs text-muted-foreground">Orders</span>
+        <div className="text-xl font-bold text-foreground mt-1">{summary.totalOrders}</div>
+        <div className="text-[10px] text-muted-foreground mt-0.5">
+          Avg {formatMoney(summary.avgOrderValue)}
+          {summary.cancelRate > 0 && ` · Cancel ${summary.cancelRate}%`}
+        </div>
+      </Card>
+      <Card className="p-3 bg-card border-border">
+        <span className="text-xs text-muted-foreground">Tips</span>
+        <div className="text-xl font-bold text-foreground mt-1">{formatMoney(summary.totalTips)}</div>
+      </Card>
+    </div>
+  );
+}
+
+function CompareTable({ comparisons, label, current }: {
+  comparisons: CompareEntry[];
+  label: string;
+  current?: { revenue: number; netRevenue: number; orders: number; tips: number };
+}) {
+  if (!current && comparisons.length === 0) return null;
+
+  function trendBadge(currentVal: number, pastVal: number) {
+    if (!pastVal || !currentVal) return null;
+    const pct = Math.round(((currentVal - pastVal) / pastVal) * 100);
+    if (pct === 0) return null;
+    return (
+      <span className={`text-[10px] ml-1 ${pct > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+        {pct > 0 ? '+' : ''}{pct}%
+      </span>
+    );
+  }
+
+  return (
+    <Card className="p-4 bg-card border-border">
+      <h3 className="text-sm font-medium text-foreground mb-3">{label}</h3>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border text-left text-xs text-muted-foreground">
+              <th className="py-2 pr-3">Period</th>
+              <th className="py-2 pr-3 text-right">Revenue</th>
+              <th className="py-2 pr-3 text-right">Net</th>
+              <th className="py-2 pr-3 text-right">Orders</th>
+              <th className="py-2 text-right">Tips</th>
+            </tr>
+          </thead>
+          <tbody>
+            {current && (
+              <tr className="border-b border-border bg-muted/30 font-medium">
+                <td className="py-1.5 pr-3 text-foreground text-xs">Current</td>
+                <td className="py-1.5 pr-3 text-right text-foreground">{formatMoney(current.revenue)}</td>
+                <td className="py-1.5 pr-3 text-right text-foreground">{formatMoney(current.netRevenue)}</td>
+                <td className="py-1.5 pr-3 text-right text-foreground">{current.orders}</td>
+                <td className="py-1.5 text-right text-foreground">{formatMoney(current.tips)}</td>
+              </tr>
+            )}
+            {comparisons.map((c) => (
+              <tr key={c.year} className="border-b border-border/50">
+                <td className="py-1.5 pr-3 text-foreground text-xs">{c.label}</td>
+                <td className="py-1.5 pr-3 text-right text-foreground">
+                  {formatMoney(c.revenue)}
+                  {current && trendBadge(current.revenue, c.revenue)}
+                </td>
+                <td className="py-1.5 pr-3 text-right text-muted-foreground">{formatMoney(c.netRevenue)}</td>
+                <td className="py-1.5 pr-3 text-right text-foreground">
+                  {c.orders}
+                  {current && trendBadge(current.orders, c.orders)}
+                </td>
+                <td className="py-1.5 text-right text-muted-foreground">{formatMoney(c.tips)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  );
+}
+
+function HourlyChart({ data, tooltipStyle, gridStroke, tickStyle }: {
+  data: HourlyData[];
   tooltipStyle: React.CSSProperties;
+  gridStroke: string;
+  tickStyle: { fontSize: number; fill: string };
 }) {
   return (
     <Card className="p-4 bg-card border-border">
+      <h3 className="text-sm font-medium text-foreground mb-3">Hourly Revenue</h3>
+      <div className="h-[200px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+            <XAxis dataKey="hour" tickFormatter={(h) => h < 12 ? `${h || 12}a` : `${h === 12 ? 12 : h - 12}p`} tick={tickStyle} />
+            <YAxis tickFormatter={formatShortMoney} tick={tickStyle} />
+            <Tooltip contentStyle={tooltipStyle}
+              labelFormatter={(h: any) => { const hr = Number(h); return hr === 0 ? '12 AM' : hr < 12 ? `${hr} AM` : hr === 12 ? '12 PM' : `${hr - 12} PM`; }}
+              formatter={(v: any) => [formatMoney(Number(v)), 'Revenue']}
+            />
+            <Bar dataKey="revenue" fill="#10b981" radius={[3, 3, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </Card>
+  );
+}
+
+function SourcesChart({ sources, tooltipStyle }: { sources: SourceData[]; tooltipStyle: React.CSSProperties }) {
+  return (
+    <Card className="p-4 bg-card border-border">
       <h3 className="text-sm font-medium text-foreground mb-3">Order Sources</h3>
-      <div className="h-[220px]">
+      <div className="h-[200px]">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
-            <Pie
-              data={sources}
-              dataKey="revenue"
-              nameKey="source"
-              cx="50%"
-              cy="50%"
-              outerRadius={75}
-              innerRadius={40}
-              paddingAngle={2}
-              label={({ name, percent }: any) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
+            <Pie data={sources} dataKey="revenue" nameKey="source" cx="50%" cy="50%"
+              outerRadius={70} innerRadius={35} paddingAngle={2}
+              label={false}
               labelLine={false}
             >
-              {sources.map((_, i) => (
-                <Cell key={i} fill={COLORS[i % COLORS.length]} />
-              ))}
+              {sources.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
             </Pie>
-            <Tooltip
-              contentStyle={tooltipStyle}
-              formatter={(value: any) => formatMoney(Number(value))}
-            />
+            <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => formatMoney(Number(v))} />
           </PieChart>
         </ResponsiveContainer>
       </div>
       <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 justify-center">
-        {sources.map((s, i) => (
-          <div key={s.source} className="flex items-center gap-1 text-xs text-muted-foreground">
-            <div className="w-2.5 h-2.5 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />
-            {s.source} ({s.orders})
-          </div>
-        ))}
+        {(() => {
+          const totalRev = sources.reduce((s, x) => s + x.revenue, 0);
+          return sources.map((s, i) => {
+            const pct = totalRev > 0 ? Math.round((s.revenue / totalRev) * 100) : 0;
+            return (
+              <div key={s.source} className="flex items-center gap-1 text-xs text-muted-foreground">
+                <div className="w-2.5 h-2.5 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />
+                {s.source} {pct}% {formatMoney(s.revenue)}
+              </div>
+            );
+          });
+        })()}
       </div>
     </Card>
   );
@@ -585,53 +774,16 @@ function ItemsChart({ items }: { items: ItemData[] }) {
             <div key={item.name}>
               <div className="flex justify-between text-xs mb-0.5">
                 <span className="text-foreground truncate max-w-[60%]">
-                  <span className="text-muted-foreground mr-1">#{i + 1}</span>
-                  {item.name}
+                  <span className="text-muted-foreground mr-1">#{i + 1}</span>{item.name}
                 </span>
-                <span className="text-muted-foreground">
-                  {formatMoney(item.revenue)} · {item.quantity} sold
-                </span>
+                <span className="text-muted-foreground">{formatMoney(item.revenue)} · {item.quantity} sold</span>
               </div>
               <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full"
-                  style={{ width: `${pct}%`, background: COLORS[i % COLORS.length] }}
-                />
+                <div className="h-full rounded-full" style={{ width: `${pct}%`, background: COLORS[i % COLORS.length] }} />
               </div>
             </div>
           );
         })}
-      </div>
-    </Card>
-  );
-}
-
-// ─── Summary Card ──────────────────────────────────────────────────────────
-function SummaryCard({ label, value, icon, sub, trend, negative }: {
-  label: string;
-  value: string;
-  icon: React.ReactNode;
-  sub?: string;
-  trend?: number;
-  negative?: boolean;
-}) {
-  return (
-    <Card className="p-3 bg-card border-border">
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-xs text-muted-foreground">{label}</span>
-        <span className="text-muted-foreground">{icon}</span>
-      </div>
-      <div className="text-xl sm:text-2xl font-bold text-foreground">{value}</div>
-      <div className="flex items-center gap-1 mt-1">
-        {sub && <span className="text-xs text-muted-foreground">{sub}</span>}
-        {trend !== undefined && trend !== 0 && (
-          <span className={`text-xs flex items-center gap-0.5 ml-auto ${
-            (negative ? trend > 0 : trend > 0) ? 'text-emerald-400' : 'text-red-400'
-          }`}>
-            {trend > 0 ? <ArrowUp size={10} /> : <ArrowDown size={10} />}
-            {Math.abs(trend)}%
-          </span>
-        )}
       </div>
     </Card>
   );

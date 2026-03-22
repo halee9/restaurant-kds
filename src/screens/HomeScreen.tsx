@@ -8,7 +8,7 @@ import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import {
   DollarSign, ShoppingBag, TrendingUp, ChefHat,
-  ClipboardList, BarChart3, RefreshCw,
+  ClipboardList, Settings, RefreshCw,
   ArrowUp, ArrowDown, ArrowRight, Clock,
 } from 'lucide-react';
 import { formatMoney, formatTime } from '../utils';
@@ -57,7 +57,7 @@ export default function HomeScreen() {
 
   const showRevenue = role === 'owner';
   const showOrders = canAccess(role, '/orders');
-  const showDashboard = canAccess(role, '/dashboard');
+  const showAdmin = role === 'owner';
 
   const fetchData = useCallback(async () => {
     if (!restaurantCode) return;
@@ -237,7 +237,7 @@ export default function HomeScreen() {
 
         {/* ── 빠른 네비게이션 (역할별 필터) ── */}
         <div className={`grid gap-3 ${
-          showDashboard ? 'grid-cols-3' : showOrders ? 'grid-cols-2' : 'grid-cols-1'
+          showAdmin ? 'grid-cols-3' : showOrders ? 'grid-cols-2' : 'grid-cols-1'
         }`}>
           <button
             onClick={() => navigate('/kds')}
@@ -264,15 +264,17 @@ export default function HomeScreen() {
             </button>
           )}
 
-          {showDashboard && (
-            <button
-              onClick={() => navigate('/dashboard')}
+          {showAdmin && (
+            <a
+              href="/admin"
+              target="_blank"
+              rel="noopener noreferrer"
               className="p-4 bg-card border border-border rounded-xl hover:border-violet-500/40 transition-colors text-left"
             >
-              <BarChart3 size={24} className="text-violet-400 mb-2" />
-              <div className="text-sm font-medium text-foreground">Dashboard</div>
-              <div className="text-xs text-muted-foreground mt-0.5">Analytics</div>
-            </button>
+              <Settings size={24} className="text-violet-400 mb-2" />
+              <div className="text-sm font-medium text-foreground">Admin</div>
+              <div className="text-xs text-muted-foreground mt-0.5">Dashboard & settings</div>
+            </a>
           )}
         </div>
 
