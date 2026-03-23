@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, Calendar, ChevronDown, ChevronRight, CornerUpLeft, Printer, Check, Info, Banknote, X, Inbox, Clock } from 'lucide-react';
+import { AlertTriangle, Calendar, ChevronDown, ChevronRight, CornerUpLeft, Printer, Check, Info, Banknote, Inbox, Clock } from 'lucide-react';
 import type { KDSOrder, OrderStatus } from '../types';
 import { getItemDisplay, getModifierDisplay, mergeLineItems, formatElapsed, formatDuration, getElapsedMinutes } from '../utils';
 import { useKDSStore } from '../stores/kdsStore';
@@ -90,14 +90,10 @@ function ActiveOrderRow({
   order,
   onUpdateStatus,
   onPrint,
-  onConfirmCash,
-  onRejectCash,
 }: {
   order: KDSOrder;
   onUpdateStatus: Props['onUpdateStatus'];
   onPrint: Props['onPrint'];
-  onConfirmCash?: Props['onConfirmCash'];
-  onRejectCash?: Props['onRejectCash'];
 }) {
   const { menuDisplayConfig, urgencyYellowMin, urgencyOrangeMin, urgencyRedMin } = useKDSStore();
   const { menuItems, modifiers } = menuDisplayConfig;
@@ -280,18 +276,6 @@ function ActiveOrderRow({
             <span className="text-lg font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
               <Banknote className="h-5 w-5" /> CASH — Collect ${((order.totalMoney ?? 0) / 100).toFixed(2)}
             </span>
-            <button
-              className="ml-auto text-sm px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex items-center gap-1"
-              onClick={(e) => { e.stopPropagation(); onRejectCash?.(order.id); }}
-            >
-              <X className="h-4 w-4" /> Cancel
-            </button>
-            <button
-              className="text-sm px-4 py-1.5 rounded bg-green-600 hover:bg-green-500 text-white font-bold transition-colors flex items-center gap-1"
-              onClick={(e) => { e.stopPropagation(); onConfirmCash?.(order.id); }}
-            >
-              <Banknote className="h-4 w-4" /> Cash Paid
-            </button>
           </div>
         )}
       </div>
@@ -524,7 +508,7 @@ function ScheduledSection({ orders, onUpdateStatus, onPrint }: {
 }
 
 // ── 메인 컴포넌트 ────────────────────────────────────────────────────────────
-export default function OrderList({ activeOrders, scheduledOrders, readyOrders, completedOrders, cancelledOrders, onUpdateStatus, onPrint, onConfirmCash, onRejectCash }: Props) {
+export default function OrderList({ activeOrders, scheduledOrders, readyOrders, completedOrders, cancelledOrders, onUpdateStatus, onPrint }: Props) {
   const { activeTab } = useSessionStore();
   const isWide = useMediaQuery('(min-width: 1400px)');
 
@@ -573,7 +557,7 @@ export default function OrderList({ activeOrders, scheduledOrders, readyOrders, 
               {kioskOrders.length === 0
                 ? <EmptyState label="No Kiosk Orders" />
                 : kioskOrders.map((o) => (
-                    <ActiveOrderRow key={o.id} order={o} onUpdateStatus={onUpdateStatus} onPrint={onPrint} onConfirmCash={onConfirmCash} onRejectCash={onRejectCash} />
+                    <ActiveOrderRow key={o.id} order={o} onUpdateStatus={onUpdateStatus} onPrint={onPrint} />
                   ))
               }
             </div>

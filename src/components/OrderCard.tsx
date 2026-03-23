@@ -1,4 +1,4 @@
-import { Truck, Calendar, Clock, AlertTriangle, FileText, Printer, Check, CheckCheck, ChevronLeft, Banknote, X } from 'lucide-react';
+import { Truck, Calendar, Clock, AlertTriangle, FileText, Printer, Check, CheckCheck, ChevronLeft, Banknote } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,7 +31,7 @@ function formatPickupAt(pickupAt: string): string {
   return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 }
 
-export default function OrderCard({ order, onUpdateStatus, onPrint, onConfirmCash, onRejectCash }: Props) {
+export default function OrderCard({ order, onUpdateStatus, onPrint }: Props) {
   const elapsed = getElapsedMinutes(order.createdAt);
   const isUrgent = elapsed >= 15 && order.status === 'OPEN';
   const pickupTime = formatPickupAt(order.pickupAt);
@@ -168,23 +168,7 @@ export default function OrderCard({ order, onUpdateStatus, onPrint, onConfirmCas
 
         {/* Row 2: backward + forward buttons */}
         <div className="px-5 pb-4 pt-2 w-full">
-          {order.status === 'PENDING_PAYMENT' && (
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="h-11 rounded-lg font-bold shrink-0"
-                onClick={() => onRejectCash?.(order.id)}
-              >
-                <X className="mr-1 h-4 w-4" /> Cancel
-              </Button>
-              <Button
-                className="flex-1 h-11 rounded-lg font-bold text-base bg-green-600 hover:bg-green-500 border-0"
-                onClick={() => onConfirmCash?.(order.id)}
-              >
-                <Banknote className="mr-2 h-4 w-4" /> Cash Paid
-              </Button>
-            </div>
-          )}
+          {/* PENDING_PAYMENT cash orders: info only, no action buttons (handled in Cashier screen) */}
           {order.status === 'OPEN' && (
             <Button
               className="w-full h-11 rounded-lg font-bold text-base bg-yellow-500 hover:bg-yellow-400 text-black border-0"
