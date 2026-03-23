@@ -148,7 +148,7 @@ function AppShell() {
   const restaurantCode = useSessionStore((s) => s.restaurantCode)!;
   const theme = useSessionStore((s) => s.theme);
   const {
-    setOrders, addOrder, updateOrderStatus, cancelOrder,
+    setOrders, addOrder, updateOrderStatus, updateOrderMeta, cancelOrder,
     setConnected, setMenuDisplayConfig,
     orders, scheduledActivationMinutes, autoStartOrders, autoPrint,
   } = useKDSStore();
@@ -217,6 +217,12 @@ function AppShell() {
     });
     socket.on('order:updated', (updated: Partial<KDSOrder> & { id: string }) => {
       if (updated.status) updateOrderStatus(updated.id, updated.status);
+      // note, flag, photos 등 메타데이터 업데이트
+      const meta: Record<string, unknown> = {};
+      if ('note' in updated) meta.note = updated.note;
+      if ('flag' in updated) meta.flag = updated.flag;
+      if ('photos' in updated) meta.photos = updated.photos;
+      if (Object.keys(meta).length > 0) updateOrderMeta(updated.id, meta);
     });
     socket.on('order:cancelled', ({ id }: { id: string }) => {
       cancelOrder(id);

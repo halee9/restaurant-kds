@@ -28,7 +28,8 @@ import {
 import {
   Clock, CreditCard, User, Package,
   ChefHat, CheckCircle2, XCircle,
-  ArrowRight, Undo2,
+  ArrowRight, Undo2, Flag, AlertTriangle,
+  FileText, Camera, QrCode, Upload, X,
 } from 'lucide-react';
 
 interface Props {
@@ -116,6 +117,204 @@ const ALL_STATUSES: { value: OrderStatus; label: string }[] = [
   { value: 'COMPLETED', label: 'Completed' },
   { value: 'CANCELED', label: 'Canceled' },
 ];
+
+const FLAG_OPTIONS = [
+  { value: 'unclaimed' as const, label: 'Unclaimed', icon: <Flag size={12} />, className: 'bg-red-600 hover:bg-red-500 text-white' },
+  { value: 'issue' as const, label: 'Issue', icon: <AlertTriangle size={12} />, className: 'bg-orange-600 hover:bg-orange-500 text-white' },
+  { value: 'refund_evidence' as const, label: 'Evidence', icon: <FileText size={12} />, className: 'bg-purple-600 hover:bg-purple-500 text-white' },
+] as const;
+
+function OrderNoteSection({ order }: { order: KDSOrder }) {
+  const [editing, setEditing] = useState(false);
+  const [note, setNote] = useState(order.note || '');
+  const { restaurantCode } = useSessionStore();
+
+  useEffect(() => { setNote(order.note || ''); setEditing(false); }, [order.id, order.note]);
+
+  const save = async () => {
+    setEditing(false);
+    if (note === (order.note || '')) return;
+    try {
+      await fetch(`${SERVER_URL}/api/orders/${order.id}/note`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note, restaurantCode }),
+      });
+    } catch (err) { console.error('Failed to save note:', err); }
+  };
+
+  return (
+    <section className="mb-4">
+      <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 flex items-center justify-between">
+        Notes
+        {!editing && (
+          <button onClick={() => setEditing(true)} className="text-xs text-muted-foreground hover:text-foreground">Edit</button>
+        )}
+      </h3>
+      {editing ? (
+        <textarea
+          className="w-full text-sm bg-muted/50 p-2 rounded border border-border min-h-[60px] resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+          value={note}
+          onChange={e => setNote(e.target.value)}
+          onBlur={save}
+          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save(); } }}
+          autoFocus
+          placeholder="Add a note..."
+        />
+      ) : (
+        <p className={`text-sm bg-muted/50 p-2 rounded cursor-pointer hover:bg-muted ${!note ? 'text-muted-foreground italic' : ''}`}
+          onClick={() => setEditing(true)}>
+          {note || 'No notes — tap to add'}
+        </p>
+      )}
+    </section>
+  );
+}
+
+function OrderFlagSection({ order }: { order: KDSOrder }) {
+  const { restaurantCode } = useSessionStore();
+  const [saving, setSaving] = useState(false);
+
+  const toggle = async (flag: string) => {
+    setSaving(true);
+    try {
+      await fetch(`${SERVER_URL}/api/orders/${order.id}/flag`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ flag: order.flag === flag ? null : flag, restaurantCode }),
+      });
+    } catch (err) { console.error('Failed to set flag:', err); }
+    setSaving(false);
+  };
+
+  return (
+    <section className="mb-4">
+      <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Flag</h3>
+      <div className="flex gap-2">
+        {FLAG_OPTIONS.map(f => (
+          <button
+            key={f.value}
+            disabled={saving}
+            onClick={() => toggle(f.value)}
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+              order.flag === f.value ? f.className : 'bg-muted text-muted-foreground hover:bg-muted/80'
+            }`}
+          >
+            {f.icon} {f.label}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function OrderPhotosSection({ order }: { order: KDSOrder }) {
+  const { restaurantCode } = useSessionStore();
+  const [qrOpen, setQrOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [viewPhoto, setViewPhoto] = useState<string | null>(null);
+
+  const uploadUrl = `${SERVER_URL}/api/orders/${order.id}/upload-page`;
+  const photos = order.photos ?? [];
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    for (const file of Array.from(files)) {
+      try {
+        const urlRes = await fetch(`${SERVER_URL}/api/orders/${order.id}/photos/upload-url`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ restaurantCode, filename: file.name, contentType: file.type }),
+        });
+        const { signedUrl, publicUrl } = await urlRes.json();
+        await fetch(signedUrl, { method: 'PUT', headers: { 'Content-Type': file.type, 'x-upsert': 'true' }, body: file });
+        await fetch(`${SERVER_URL}/api/orders/${order.id}/photos`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: publicUrl, restaurantCode }),
+        });
+      } catch (err) { console.error('Upload failed:', err); }
+    }
+    setUploading(false);
+    e.target.value = '';
+  };
+
+  const deletePhoto = async (url: string) => {
+    try {
+      await fetch(`${SERVER_URL}/api/orders/${order.id}/photos`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, restaurantCode }),
+      });
+    } catch (err) { console.error('Delete failed:', err); }
+  };
+
+  return (
+    <section className="mb-4">
+      <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
+        <Camera size={12} /> Photos {photos.length > 0 && `(${photos.length})`}
+      </h3>
+
+      {/* Photo grid */}
+      {photos.length > 0 && (
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          {photos.map((p, i) => (
+            <div key={i} className="relative group aspect-square rounded-lg overflow-hidden bg-muted cursor-pointer" onClick={() => setViewPhoto(p.url)}>
+              <img src={p.url} alt="" className="w-full h-full object-cover" />
+              <button
+                onClick={e => { e.stopPropagation(); deletePhoto(p.url); }}
+                className="absolute top-1 right-1 w-5 h-5 bg-black/70 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+              >
+                <X size={10} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={() => setQrOpen(true)}>
+          <QrCode size={14} /> Phone Upload
+        </Button>
+        <Button variant="outline" size="sm" className="gap-1 text-xs relative" disabled={uploading}>
+          <Upload size={14} /> {uploading ? 'Uploading...' : 'From Computer'}
+          <input type="file" accept="image/*" multiple onChange={handleFileUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+        </Button>
+      </div>
+
+      {/* QR Dialog */}
+      <Dialog open={qrOpen} onOpenChange={setQrOpen}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle className="text-center">Scan to Upload</DialogTitle>
+            <DialogDescription className="text-center">
+              Order #{order.displayId} — scan with your phone
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-center py-4">
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(uploadUrl)}`}
+              alt="QR Code"
+              className="w-48 h-48 rounded-lg"
+            />
+          </div>
+          <p className="text-xs text-muted-foreground text-center break-all">{uploadUrl}</p>
+        </DialogContent>
+      </Dialog>
+
+      {/* Photo viewer */}
+      <Dialog open={!!viewPhoto} onOpenChange={() => setViewPhoto(null)}>
+        <DialogContent className="max-w-lg p-1">
+          <DialogHeader className="sr-only"><DialogTitle>Photo</DialogTitle></DialogHeader>
+          {viewPhoto && <img src={viewPhoto} alt="" className="w-full rounded" />}
+        </DialogContent>
+      </Dialog>
+    </section>
+  );
+}
 
 export default function OrderDetailPanel({ order, onClose, onStatusChange, onRefund, onDelete, allowDirectStatus }: Props) {
   const [refundConfirmOpen, setRefundConfirmOpen] = useState(false);
@@ -473,25 +672,22 @@ export default function OrderDetailPanel({ order, onClose, onStatusChange, onRef
           </div>
         </section>
 
-        {/* Notes */}
-        {(order.note || order.deliveryNote) && (
-          <>
-            <Separator className="mb-4" />
-            <section className="mb-4">
-              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                Notes
-              </h3>
-              {order.note && (
-                <p className="text-sm bg-muted/50 p-2 rounded">{order.note}</p>
-              )}
-              {order.deliveryNote && (
-                <p className="text-sm bg-blue-500/10 text-blue-400 p-2 rounded mt-1">
-                  Delivery: {order.deliveryNote}
-                </p>
-              )}
-            </section>
-          </>
+        {/* Notes (editable) */}
+        <Separator className="mb-4" />
+        <OrderNoteSection order={order} />
+
+        {/* Delivery Note (read-only) */}
+        {order.deliveryNote && (
+          <p className="text-sm bg-blue-500/10 text-blue-400 p-2 rounded mb-4">
+            Delivery: {order.deliveryNote}
+          </p>
         )}
+
+        {/* Flag */}
+        <OrderFlagSection order={order} />
+
+        {/* Photos */}
+        <OrderPhotosSection order={order} />
 
         <Separator className="mb-4" />
 

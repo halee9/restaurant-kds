@@ -42,6 +42,7 @@ interface KDSState {
   setOrders: (orders: KDSOrder[]) => void;
   addOrder: (order: KDSOrder) => void;
   updateOrderStatus: (id: string, status: OrderStatus) => void;
+  updateOrderMeta: (id: string, meta: Record<string, unknown>) => void;
   cancelOrder: (id: string) => void;
 
   // UI 액션
@@ -104,6 +105,13 @@ export const useKDSStore = create<KDSState>()((set, get) => ({
     set((state) => ({
       orders: state.orders.map((o) =>
         o.id === id ? { ...o, status: 'CANCELED' as OrderStatus, updatedAt: new Date().toISOString() } : o
+      ),
+    })),
+
+  updateOrderMeta: (id, meta) =>
+    set((state) => ({
+      orders: state.orders.map((o) =>
+        o.id === id ? { ...o, ...meta } : o
       ),
     })),
 

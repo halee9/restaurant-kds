@@ -27,6 +27,8 @@ export interface RestaurantConfig {
   enable_landing?: boolean;
   enable_cash_payment?: boolean;
   enable_coin_counting?: boolean;
+  manager_pin?: string | null;
+  staff_pin?: string | null;
   description?: string | null;
   address?: string | null;
   phone?: string | null;
@@ -115,6 +117,8 @@ export interface KDSOrder {
   cardLast4?: string;      // '4242'
   duplicateOf?: string;    // 중복 주문인 경우, 원본 주문의 displayId
   refundedAt?: string;     // 환불된 시각
+  flag?: 'unclaimed' | 'issue' | 'refund_evidence' | null;
+  photos?: { url: string; uploaded_at: string }[];
   startedAt?: string;    // IN_PROGRESS로 처음 전환된 시각
   readyAt?: string;      // READY로 처음 전환된 시각
   completedAt?: string;  // COMPLETED로 처음 전환된 시각
