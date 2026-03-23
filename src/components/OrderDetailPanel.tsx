@@ -127,6 +127,7 @@ export default function OrderDetailPanel({ order, onClose, onStatusChange, onRef
   const [pinVerified, setPinVerified] = useState(false);
   const [verifyingPin, setVerifyingPin] = useState(false);
   const restaurantCode = useSessionStore((s) => s.restaurantCode);
+  const currentRole = useSessionStore((s) => s.role);
 
   // Reset PIN state when dialog opens/closes
   useEffect(() => {
@@ -148,7 +149,13 @@ export default function OrderDetailPanel({ order, onClose, onStatusChange, onRef
         body: JSON.stringify({ pin: enteredPin }),
       });
       if (res.ok) {
-        setPinVerified(true);
+        const data = await res.json();
+        if (data.role === currentRole) {
+          setPinVerified(true);
+        } else {
+          setPinError('Enter your own PIN');
+          setPin('');
+        }
       } else {
         setPinError('Incorrect PIN');
         setPin('');
