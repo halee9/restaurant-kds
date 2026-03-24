@@ -178,8 +178,8 @@ function OrderFlagSection({ order }: { order: KDSOrder }) {
 
   useEffect(() => { setLocalFlag(order.flag); }, [order.flag]);
 
-  const toggle = async (flag: string) => {
-    const newFlag = localFlag === flag ? null : flag;
+  const toggle = async (flag: KDSOrder['flag'] & string) => {
+    const newFlag: KDSOrder['flag'] = localFlag === flag ? null : flag;
     setLocalFlag(newFlag);  // optimistic
     setSaving(true);
     try {
