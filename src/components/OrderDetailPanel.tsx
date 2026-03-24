@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { KDSOrder, OrderStatus } from '../types';
 import { useSessionStore } from '../stores/sessionStore';
+import { useKDSStore } from '../stores/kdsStore';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Separator } from './ui/separator';
@@ -324,7 +325,11 @@ function OrderPhotosSection({ order }: { order: KDSOrder }) {
   );
 }
 
-export default function OrderDetailPanel({ order, onClose, onStatusChange, onRefund, onDelete, allowDirectStatus }: Props) {
+export default function OrderDetailPanel({ order: orderProp, onClose, onStatusChange, onRefund, onDelete, allowDirectStatus }: Props) {
+  // Store에서 최신 order를 구독 (Socket.io 업데이트 실시간 반영)
+  const storeOrder = useKDSStore((s) => s.orders.find((o) => o.id === orderProp?.id));
+  const order = storeOrder ?? orderProp;
+
   const [refundConfirmOpen, setRefundConfirmOpen] = useState(false);
   const [refunding, setRefunding] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
