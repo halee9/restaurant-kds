@@ -110,6 +110,25 @@ export function TicketContent({ order, menuItems, modifiers: modifierList }: {
         </div>
       </div>
 
+      {/* ── Payment info (screen + print) ── */}
+      {(order.cardBrand || order.cardLast4 || order.paymentMethod) && (
+        <div className="text-xs text-center text-gray-600 mt-1">
+          {order.paymentMethod === 'CASH' ? 'Cash' : (
+            <>
+              {order.cardBrand && <span>{order.cardBrand}</span>}
+              {order.cardLast4 && <span> •••• {order.cardLast4}</span>}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ── Phone number (screen only — not printed, for calling no-show customers) ── */}
+      {order.customerPhone && (
+        <div className="text-xs text-center text-gray-600 mt-0.5 print:hidden">
+          📞 {order.customerPhone}
+        </div>
+      )}
+
       {/* ── Server alerts ── */}
       {alertMap.size > 0 && (
         <>

@@ -685,6 +685,12 @@ export default function OrderDetailPanel({ order: orderProp, onClose, onStatusCh
                 {order.cardLast4 && <span>· •••• {order.cardLast4}</span>}
               </div>
             )}
+            {(order.customerPhone || order.customerEmail) && (
+              <div className="flex flex-col gap-0.5 pt-2 text-xs text-muted-foreground">
+                {order.customerPhone && <span>📞 {order.customerPhone}</span>}
+                {order.customerEmail && <span>✉ {order.customerEmail}</span>}
+              </div>
+            )}
           </div>
         </section>
 
