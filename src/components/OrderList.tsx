@@ -216,21 +216,15 @@ export function ActiveOrderRow({
                 onClick={(e) => handleItemClick(e, idx, qty)}
               >
                 {isDone && <Check className="h-9 w-9 text-green-500 shrink-0" />}
+                {qty > 1 && (
+                  isDone
+                    ? <span className="text-muted-foreground/40">{qty}×</span>
+                    : doneCount > 0
+                      ? <span className="text-green-600 dark:text-green-400">{doneCount}/{qty}×</span>
+                      : <span>{qty}×</span>
+                )}
                 {display.label}
               </span>
-              {qty > 1 && (
-                isDone
-                  ? <span className="text-4xl font-black leading-none tabular-nums text-muted-foreground/40">
-                      ×{qty}
-                    </span>
-                  : doneCount > 0
-                    ? <span className="text-4xl font-black leading-none tabular-nums text-green-600 dark:text-green-400">
-                        {doneCount}/{qty}
-                      </span>
-                    : <span className="text-4xl font-black leading-none tabular-nums text-foreground">
-                        ×{qty}
-                      </span>
-              )}
               {item.variationName && (
                 <span className={`text-base transition-colors ${isDone ? 'text-muted-foreground/30' : 'text-muted-foreground/60'}`}>
                   ({item.variationName})
@@ -446,7 +440,7 @@ function CompactOrderRow({
           const display = getItemDisplay(item.name, menuItems);
           return (
             <span key={idx}>
-              {display.label}{Number(item.quantity) > 1 ? ` ×${item.quantity}` : ''}
+              {Number(item.quantity) > 1 ? `${item.quantity}×` : ''}{display.label}
             </span>
           );
         })}

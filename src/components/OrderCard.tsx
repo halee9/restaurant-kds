@@ -123,11 +123,12 @@ export default function OrderCard({ order, onUpdateStatus, onPrint }: Props) {
           const display = getItemDisplay(item.name, menuItems);
           return (
             <div key={idx} className="flex items-center gap-1.5 flex-wrap">
+              {Number(item.quantity) > 1 && <span className="font-black text-xl">{item.quantity}×</span>}
               <span
                 className="px-2.5 py-1 rounded-md font-bold text-xl leading-tight"
                 style={{ backgroundColor: display.bgColor, color: display.textColor }}
               >
-                {Number(item.quantity) > 1 && `${item.quantity}×`}{display.label}
+                {display.label}
                 {display.serverAlert && (
                   <AlertTriangle className="inline ml-1.5 h-4 w-4 text-red-500" />
                 )}
