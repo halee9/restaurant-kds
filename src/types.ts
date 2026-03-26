@@ -110,6 +110,8 @@ export interface KDSOrder {
   deliveryNote?: string;  // 배달 앱 배달 지시 (DoorDash/Uber Eats/Grubhub)
   subtotal?: number;    // cents (optional — not all order sources provide it)
   tax?: number;         // cents
+  taxAmount?: number;   // cents (server sends both tax and taxAmount)
+  tipAmount?: number;   // cents
   createdAt: string;
   updatedAt: string;
   paymentSource?: string;  // 'stripe' | 'square' | 'cash'

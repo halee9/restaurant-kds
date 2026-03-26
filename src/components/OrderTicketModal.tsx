@@ -98,10 +98,16 @@ export function TicketContent({ order, menuItems, modifiers: modifierList }: {
             <span>{formatMoney(order.subtotal)}</span>
           </div>
         )}
-        {order.tax != null && (
+        {(order.tax ?? order.taxAmount) != null && (
           <div className="flex justify-between">
             <span>Tax</span>
-            <span>{formatMoney(order.tax)}</span>
+            <span>{formatMoney((order.tax ?? order.taxAmount)!)}</span>
+          </div>
+        )}
+        {order.tipAmount != null && order.tipAmount > 0 && (
+          <div className="flex justify-between">
+            <span>Tip</span>
+            <span>{formatMoney(order.tipAmount)}</span>
           </div>
         )}
         <div className="flex justify-between font-bold text-base">
