@@ -50,8 +50,8 @@ function KitchenScreen({ onUpdateStatus, onPrint, printQueue, setPrintQueue, now
   const { connected, orders, scheduledActivationMinutes, orderCounts } = useKDSStore();
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  const activeOrders    = orders.filter((o) => o.status === 'PENDING_PAYMENT' || ((o.status === 'OPEN' || o.status === 'IN_PROGRESS') && !isScheduledOrder(o, now, scheduledActivationMinutes)));
-  const scheduledOrders = orders.filter((o) => (o.status === 'OPEN' || o.status === 'IN_PROGRESS') && isScheduledOrder(o, now, scheduledActivationMinutes));
+  const activeOrders    = orders.filter((o) => o.status === 'PENDING_PAYMENT' || o.status === 'IN_PROGRESS' || (o.status === 'OPEN' && !isScheduledOrder(o, now, scheduledActivationMinutes)));
+  const scheduledOrders = orders.filter((o) => o.status === 'OPEN' && isScheduledOrder(o, now, scheduledActivationMinutes));
   const readyOrders     = orders.filter((o) => o.status === 'READY');
   const completedOrders = orders.filter((o) => o.status === 'COMPLETED');
   const cancelledOrders = orders.filter((o) => o.status === 'CANCELED');

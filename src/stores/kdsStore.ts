@@ -161,8 +161,8 @@ export const useKDSStore = create<KDSState>()((set, get) => ({
     const { orders } = get();
     return {
       pendingPayment: orders.filter((o) => o.status === 'PENDING_PAYMENT').length,
-      active:    orders.filter((o) => (o.status === 'OPEN' || o.status === 'IN_PROGRESS') && !isScheduledOrder(o, Date.now(), get().scheduledActivationMinutes)).length,
-      scheduled: orders.filter((o) => (o.status === 'OPEN' || o.status === 'IN_PROGRESS') && isScheduledOrder(o, Date.now(), get().scheduledActivationMinutes)).length,
+      active:    orders.filter((o) => o.status === 'IN_PROGRESS' || (o.status === 'OPEN' && !isScheduledOrder(o, Date.now(), get().scheduledActivationMinutes))).length,
+      scheduled: orders.filter((o) => o.status === 'OPEN' && isScheduledOrder(o, Date.now(), get().scheduledActivationMinutes)).length,
       // READY만 표시 (COMPLETED는 제외 — 실질적으로 중요한 건 READY)
       readyDone: orders.filter((o) => o.status === 'READY').length,
       cancelled: orders.filter((o) => o.status === 'CANCELED').length,
