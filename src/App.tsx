@@ -31,6 +31,7 @@ import HomeScreen from './screens/HomeScreen';
 import ClockScreen from './screens/ClockScreen';
 import CashManagementScreen from './screens/CashManagementScreen';
 import CounterScreen from './screens/CounterScreen';
+import HelpScreen from './screens/HelpScreen';
 import { playOrderNotification } from './utils/sounds';
 import { isScheduledOrder } from './utils/isScheduledOrder';
 
@@ -394,6 +395,7 @@ function AppShell() {
         <Route path="/clock" element={<RoleGuard path="/clock"><ClockScreen /></RoleGuard>} />
         <Route path="/orders" element={<RoleGuard path="/orders"><OrdersScreen /></RoleGuard>} />
         <Route path="/cash" element={<RoleGuard path="/cash"><CashManagementScreen /></RoleGuard>} />
+        <Route path="/help" element={<RoleGuard path="/help"><HelpScreen /></RoleGuard>} />
       </Route>
     </Routes>
   );

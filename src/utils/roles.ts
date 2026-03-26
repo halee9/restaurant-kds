@@ -2,9 +2,9 @@ import type { PosRole } from '../types';
 
 /** 역할별 접근 가능 경로 (Admin은 별도 앱으로 분리됨) */
 const ROLE_ROUTES: Record<PosRole, Set<string>> = {
-  staff:   new Set(['/', '/kds', '/counter', '/clock', '/display']),
-  manager: new Set(['/', '/kds', '/counter', '/clock', '/orders', '/cash', '/display']),
-  owner:   new Set(['/', '/kds', '/counter', '/clock', '/orders', '/cash', '/display']),
+  staff:   new Set(['/', '/kds', '/counter', '/clock', '/display', '/help']),
+  manager: new Set(['/', '/kds', '/counter', '/clock', '/orders', '/cash', '/display', '/help']),
+  owner:   new Set(['/', '/kds', '/counter', '/clock', '/orders', '/cash', '/display', '/help']),
 };
 
 /** 역할별 기본 랜딩 경로 */
@@ -27,7 +27,7 @@ export function getVisibleNavPaths(role: PosRole): string[] {
 
 /** 사이드바 하단 항목 중 표시할 항목 (label 기준) */
 export function getVisibleBottomItems(role: PosRole): Set<string> {
-  const items = new Set(['Display', 'Logout']);
+  const items = new Set(['Display', 'Help', 'Logout']);
   if (role === 'owner') items.add('Admin');
   return items;
 }
