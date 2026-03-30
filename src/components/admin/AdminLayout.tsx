@@ -4,7 +4,7 @@ import AdminBottomNav from './AdminBottomNav';
 
 export default function AdminLayout() {
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <div className="h-dvh flex flex-col bg-background">
       <AdminHeader />
       <main className="flex-1 min-h-0 overflow-auto">
         <div className="max-w-5xl mx-auto">

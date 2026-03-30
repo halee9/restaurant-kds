@@ -15,9 +15,11 @@ npm run dev        # Vite dev server with HMR
 npm run build      # tsc -b && vite build
 npm run lint       # eslint
 npm run preview    # Preview production build
+npm test           # vitest run (all tests)
+npm run test:watch # vitest (watch mode)
 ```
 
-No test runner is configured. Run `npm run build` to type-check.
+**TDD**: 코드 수정 시 반드시 테스트 먼저 작성 → 구현 → `npm test` 통과 확인. Vitest + @testing-library/react 사용.
 
 ## Architecture
 

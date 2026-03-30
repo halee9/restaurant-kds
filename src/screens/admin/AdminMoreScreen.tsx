@@ -1,8 +1,14 @@
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
-import { Settings, Palette, Store, ChevronRight } from 'lucide-react';
+import { BarChart3, Settings, Palette, Store, ChevronRight } from 'lucide-react';
 
 const items = [
+  {
+    icon: BarChart3,
+    label: 'Analytics',
+    description: 'Daily, weekly, monthly sales analytics',
+    path: '/admin/analytics',
+  },
   {
     icon: Settings,
     label: 'Settings',

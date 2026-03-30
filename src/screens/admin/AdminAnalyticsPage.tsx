@@ -1,7 +1,7 @@
 import { useAdminStore } from '../../stores/adminStore';
 import DashboardScreen from '../DashboardScreen';
 
-export default function AdminDashboardPage() {
+export default function AdminAnalyticsPage() {
   const restaurantCode = useAdminStore((s) => s.restaurantCode);
   const theme = useAdminStore((s) => s.theme);
 

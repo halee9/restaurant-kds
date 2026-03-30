@@ -12,7 +12,8 @@ import RestaurantLogin from './components/RestaurantLogin';
 import KDSSettingsPanel from './components/KDSSettingsPanel';
 import AdminAuthGuard from './components/admin/AdminAuthGuard';
 import AdminLayout from './components/admin/AdminLayout';
-import AdminDashboardPage from './screens/admin/AdminDashboardPage';
+import AdminLiveDashboardPage from './screens/admin/AdminLiveDashboardPage';
+import AdminAnalyticsPage from './screens/admin/AdminAnalyticsPage';
 import AdminOrdersPage from './screens/admin/AdminOrdersPage';
 import AdminCashPage from './screens/admin/AdminCashPage';
 import AdminStaffPage from './screens/admin/AdminStaffPage';
@@ -357,7 +358,8 @@ function AppShell() {
       {/* Admin: 독립 PIN 인증, 모바일 퍼스트 레이아웃 */}
       <Route path="/admin" element={<AdminAuthGuard />}>
         <Route element={<AdminLayout />}>
-          <Route index element={<AdminDashboardPage />} />
+          <Route index element={<AdminLiveDashboardPage />} />
+          <Route path="analytics" element={<AdminAnalyticsPage />} />
           <Route path="orders" element={<AdminOrdersPage />} />
           <Route path="cash" element={<AdminCashPage />} />
           <Route path="staff" element={<AdminStaffPage />} />
@@ -421,7 +423,7 @@ export default function App() {
         {/* Admin: POS 로그인 없이도 접근 가능 */}
         <Route path="/admin" element={<AdminAuthGuard />}>
           <Route element={<AdminLayout />}>
-            <Route index element={<AdminDashboardPage />} />
+            <Route index element={<AdminLiveDashboardPage />} />
             <Route path="orders" element={<AdminOrdersPage />} />
             <Route path="cash" element={<AdminCashPage />} />
             <Route path="staff" element={<AdminStaffPage />} />

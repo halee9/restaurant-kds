@@ -1,8 +1,8 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { BarChart3, ClipboardList, Banknote, Users, Menu } from 'lucide-react';
+import { LayoutDashboard, ClipboardList, Banknote, Users, Menu } from 'lucide-react';
 
 const tabs = [
-  { icon: BarChart3, label: 'Home', path: '/admin' },
+  { icon: LayoutDashboard, label: 'Home', path: '/admin' },
   { icon: ClipboardList, label: 'Orders', path: '/admin/orders' },
   { icon: Banknote, label: 'Cash', path: '/admin/cash' },
   { icon: Users, label: 'Staff', path: '/admin/staff' },
@@ -17,7 +17,7 @@ export default function AdminBottomNav() {
     if (path === '/admin') return location.pathname === '/admin';
     // /admin/settings, /admin/menu-display, /admin/online-store → More 탭 활성화
     if (path === '/admin/more') {
-      return ['/admin/more', '/admin/settings', '/admin/menu-display', '/admin/online-store'].some(
+      return ['/admin/more', '/admin/analytics', '/admin/settings', '/admin/menu-display', '/admin/online-store'].some(
         (p) => location.pathname === p
       );
     }
