@@ -8,6 +8,7 @@ interface ExpandedItem {
   name: string;
   variationName?: string;
   modifiers?: OrderModifier[];
+  note?: string;
 }
 
 /** Expand each line item by its quantity (qty=2 → 2 label entries) */
@@ -20,6 +21,7 @@ function expandItems(lineItems: KDSOrder['lineItems']): ExpandedItem[] {
         name: item.name,
         variationName: item.variationName,
         modifiers: (item.modifiers ?? []).map(normalizeMod),
+        note: item.note,
       });
     }
   });
@@ -117,6 +119,13 @@ export function PrintAllItemsButton({ order, className }: Props) {
                   {m.price > 0 && <span className="text-sm ml-1">{formatMoney(m.price * m.qty)}</span>}
                 </div>
               ))}
+
+              {/* Item note */}
+              {items[currentIndex].note && (
+                <div className="text-base italic mt-2 border-t border-dashed border-gray-400 pt-2">
+                  ★ {items[currentIndex].note}
+                </div>
+              )}
             </div>
           )}
         </div>

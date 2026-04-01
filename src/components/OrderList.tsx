@@ -40,6 +40,7 @@ const URGENCY_TIME: Record<Urgency, string> = {
 
 interface Props {
   activeOrders: KDSOrder[];
+  pendingPaymentOrders: KDSOrder[];  // PENDING_PAYMENT (Cash Due — Queue에서만 표시)
   scheduledOrders: KDSOrder[];   // OPEN + isScheduled (예약 대기)
   readyOrders: KDSOrder[];       // READY (픽업 대기)
   completedOrders: KDSOrder[];   // COMPLETED (완전 종료)
@@ -527,17 +528,14 @@ function ScheduledSection({ orders, onUpdateStatus, onPrint }: {
 }
 
 // ── 메인 컴포넌트 ────────────────────────────────────────────────────────────
-export default function OrderList({ activeOrders, scheduledOrders, readyOrders, completedOrders, cancelledOrders, onUpdateStatus, onPrint }: Props) {
+export default function OrderList({ activeOrders, pendingPaymentOrders, scheduledOrders, readyOrders, completedOrders, cancelledOrders, onUpdateStatus, onPrint }: Props) {
   const { activeTab } = useSessionStore();
   const isWide = useMediaQuery('(min-width: 1400px)');
 
   // ── Active 탭 ─────────────────────────────────────────────────────────────
   if (activeTab === 'active') {
-    // PENDING_PAYMENT를 먼저 표시, 그 다음 오래된 주문 순
+    // 오래된 주문 순 정렬
     const sorted = [...activeOrders].sort((a, b) => {
-      const aIsPending = a.status === 'PENDING_PAYMENT' ? 0 : 1;
-      const bIsPending = b.status === 'PENDING_PAYMENT' ? 0 : 1;
-      if (aIsPending !== bIsPending) return aIsPending - bIsPending;
       const ta = a.startedAt ?? a.createdAt;
       const tb = b.startedAt ?? b.createdAt;
       return ta.localeCompare(tb);
@@ -546,14 +544,13 @@ export default function OrderList({ activeOrders, scheduledOrders, readyOrders, 
     // Kiosk = 왼쪽, 나머지 (Online/Delivery) = 오른쪽
     const kioskOrders  = sorted.filter((o) => o.source === 'Kiosk');
     const onlineOrders = sorted.filter((o) => o.source !== 'Kiosk');
-    const pendingCashCount = kioskOrders.filter((o) => o.status === 'PENDING_PAYMENT').length;
 
     const sortedScheduled = [...scheduledOrders].sort((a, b) =>
       (a.pickupAt ?? '').localeCompare(b.pickupAt ?? '')
     );
 
-    // Queue 칼럼용: Cash 미결제 (active 중 PENDING_PAYMENT)
-    const pendingCashOrders = sorted.filter((o) => o.status === 'PENDING_PAYMENT');
+    // Queue 칼럼용: Cash 미결제 (별도 prop으로 전달받음)
+    const pendingCashOrders = [...pendingPaymentOrders].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     const sortedReady = [...readyOrders].sort((a, b) =>
       (a.readyAt ?? a.createdAt).localeCompare(b.readyAt ?? b.createdAt)
     );
@@ -567,9 +564,6 @@ export default function OrderList({ activeOrders, scheduledOrders, readyOrders, 
               <span className="text-[11px] font-bold text-muted-foreground tracking-widest uppercase">Kiosk / Cash</span>
               {kioskOrders.length > 0 && (
                 <span className="text-[10px] font-bold text-muted-foreground/60">({kioskOrders.length})</span>
-              )}
-              {pendingCashCount > 0 && (
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500 text-black">{pendingCashCount} cash</span>
               )}
             </div>
             <div className="flex-1 overflow-y-auto min-h-0">
