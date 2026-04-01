@@ -229,6 +229,8 @@ function OrderPhotosSection({ order }: { order: KDSOrder }) {
   const uploadUrl = `${SERVER_URL}/api/orders/${order.id}/upload-page`;
   const photos = order.photos ?? [];
 
+  const { updateOrderMeta } = useKDSStore();
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -242,11 +244,13 @@ function OrderPhotosSection({ order }: { order: KDSOrder }) {
         });
         const { signedUrl, publicUrl } = await urlRes.json();
         await fetch(signedUrl, { method: 'PUT', headers: { 'Content-Type': file.type, 'x-upsert': 'true' }, body: file });
-        await fetch(`${SERVER_URL}/api/orders/${order.id}/photos`, {
+        const regRes = await fetch(`${SERVER_URL}/api/orders/${order.id}/photos`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url: publicUrl, restaurantCode }),
         });
+        const { photos: updated } = await regRes.json();
+        if (updated) updateOrderMeta(order.id, { photos: updated });
       } catch (err) { console.error('Upload failed:', err); }
     }
     setUploading(false);
@@ -255,11 +259,13 @@ function OrderPhotosSection({ order }: { order: KDSOrder }) {
 
   const deletePhoto = async (url: string) => {
     try {
-      await fetch(`${SERVER_URL}/api/orders/${order.id}/photos`, {
+      const res = await fetch(`${SERVER_URL}/api/orders/${order.id}/photos`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url, restaurantCode }),
       });
+      const { photos: updated } = await res.json();
+      if (updated) updateOrderMeta(order.id, { photos: updated });
     } catch (err) { console.error('Delete failed:', err); }
   };
 
