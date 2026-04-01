@@ -225,11 +225,13 @@ function OrderPhotosSection({ order }: { order: KDSOrder }) {
   const [qrOpen, setQrOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [viewPhoto, setViewPhoto] = useState<string | null>(null);
+  const [localPhotos, setLocalPhotos] = useState(order.photos ?? []);
+
+  // order prop이 바뀌면 (다른 주문 선택, Socket.io 업데이트 등) 로컬 상태 동기화
+  useEffect(() => { setLocalPhotos(order.photos ?? []); }, [order.id, order.photos]);
 
   const uploadUrl = `${SERVER_URL}/api/orders/${order.id}/upload-page`;
-  const photos = order.photos ?? [];
-
-  const { updateOrderMeta } = useKDSStore();
+  const photos = localPhotos;
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -250,7 +252,7 @@ function OrderPhotosSection({ order }: { order: KDSOrder }) {
           body: JSON.stringify({ url: publicUrl, restaurantCode }),
         });
         const { photos: updated } = await regRes.json();
-        if (updated) updateOrderMeta(order.id, { photos: updated });
+        if (updated) setLocalPhotos(updated);
       } catch (err) { console.error('Upload failed:', err); }
     }
     setUploading(false);
@@ -258,6 +260,8 @@ function OrderPhotosSection({ order }: { order: KDSOrder }) {
   };
 
   const deletePhoto = async (url: string) => {
+    // 낙관적 업데이트: 즉시 UI에서 제거
+    setLocalPhotos((prev) => prev.filter((p) => p.url !== url));
     try {
       const res = await fetch(`${SERVER_URL}/api/orders/${order.id}/photos`, {
         method: 'DELETE',
@@ -265,8 +269,11 @@ function OrderPhotosSection({ order }: { order: KDSOrder }) {
         body: JSON.stringify({ url, restaurantCode }),
       });
       const { photos: updated } = await res.json();
-      if (updated) updateOrderMeta(order.id, { photos: updated });
-    } catch (err) { console.error('Delete failed:', err); }
+      if (updated) setLocalPhotos(updated);
+    } catch (err) {
+      console.error('Delete failed:', err);
+      setLocalPhotos(order.photos ?? []); // 실패 시 롤백
+    }
   };
 
   return (
