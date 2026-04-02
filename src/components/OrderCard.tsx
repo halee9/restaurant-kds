@@ -3,8 +3,9 @@ import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { KDSOrder } from '../types';
-import { formatMoney, formatElapsed, getElapsedMinutes, getItemDisplay, getModifierDisplay, collectLineItemIcons, mergeLineItems } from '../utils';
+import { formatMoney, formatElapsed, getElapsedMinutes, getItemDisplay, getModifierDisplay, collectLineItemIcons, mergeLineItems, adaptColorForLight } from '../utils';
 import { useKDSStore } from '../stores/kdsStore';
+import { useSessionStore } from '../stores/sessionStore';
 
 interface Props {
   order: KDSOrder;
@@ -36,6 +37,7 @@ export default function OrderCard({ order, onUpdateStatus, onPrint }: Props) {
   const isUrgent = elapsed >= 15 && order.status === 'OPEN';
   const pickupTime = formatPickupAt(order.pickupAt);
   const { menuDisplayConfig } = useKDSStore();
+  const theme = useSessionStore((s) => s.theme);
   const { menuItems, modifiers: modifierDisplay } = menuDisplayConfig;
 
   return (
@@ -101,7 +103,7 @@ export default function OrderCard({ order, onUpdateStatus, onPrint }: Props) {
           )}
         </div>
         <div className="text-right shrink-0 leading-tight">
-          <div className={`text-xl font-black ${isUrgent ? 'text-red-400' : 'text-muted-foreground'}`}>
+          <div className={`text-xl font-black ${isUrgent ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`}>
             {formatElapsed(order.createdAt)}
           </div>
           {pickupTime && (
@@ -128,7 +130,7 @@ export default function OrderCard({ order, onUpdateStatus, onPrint }: Props) {
               {Number(item.quantity) > 1 && <span className="font-black text-xl">{item.quantity}×</span>}
               <span
                 className="px-2.5 py-1 rounded-md font-bold text-xl leading-tight"
-                style={{ backgroundColor: display.bgColor, color: display.textColor }}
+                style={(() => { const c = adaptColorForLight(display.bgColor, display.textColor, theme); return { backgroundColor: c.bg, color: c.text }; })()}
               >
                 {display.label}
                 {display.serverAlert && (
@@ -146,7 +148,7 @@ export default function OrderCard({ order, onUpdateStatus, onPrint }: Props) {
                     {modDisplay.qty > 1 && <span className="font-bold">{modDisplay.qty}×</span>}
                     {modDisplay.label}
                     {modDisplay.serverAlert && (
-                      <AlertTriangle className="h-3.5 w-3.5 text-red-400" />
+                      <AlertTriangle className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
                     )}
                   </span>
                 );

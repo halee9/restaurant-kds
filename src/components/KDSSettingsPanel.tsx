@@ -1,4 +1,4 @@
-import { X, Volume2, VolumeX } from 'lucide-react';
+import { X, Volume2, VolumeX, Sun, Moon } from 'lucide-react';
 import { useState } from 'react';
 import { useKDSStore } from '../stores/kdsStore';
 import { useSessionStore } from '../stores/sessionStore';
@@ -19,15 +19,16 @@ interface Props {
   onClose: () => void;
 }
 
-function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
+function Toggle({ checked, onChange, 'aria-label': ariaLabel }: { checked: boolean; onChange: () => void; 'aria-label'?: string }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
+      aria-label={ariaLabel}
       onClick={onChange}
       className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-        checked ? 'bg-primary' : 'bg-white/20'
+        checked ? 'bg-primary' : 'bg-muted'
       }`}
     >
       <span
@@ -51,7 +52,7 @@ export default function KDSSettingsPanel({ open, onClose }: Props) {
     urgencyRedMin,    setUrgencyRedMin,
   } = useKDSStore();
 
-  const { restaurantCode, pin } = useSessionStore();
+  const { restaurantCode, pin, theme, setTheme } = useSessionStore();
   const [activationInput, setActivationInput] = useState(String(scheduledActivationMinutes));
 
   // 긴급도 임계값 로컬 입력 상태
@@ -90,6 +91,26 @@ export default function KDSSettingsPanel({ open, onClose }: Props) {
 
         {/* Settings items */}
         <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-5">
+
+          {/* Theme toggle */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              {theme === 'dark' ? <Moon className="h-4 w-4 text-muted-foreground" /> : <Sun className="h-4 w-4 text-muted-foreground" />}
+              <div>
+                <p className="text-sm font-semibold">Theme</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {theme === 'dark' ? 'Dark mode' : 'Light mode'}
+                </p>
+              </div>
+            </div>
+            <Toggle
+              checked={theme === 'dark'}
+              onChange={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              aria-label="Theme"
+            />
+          </div>
+
+          <div className="h-px bg-border/60" />
 
           {/* Scheduled order activation */}
           <div className="flex flex-col gap-2">

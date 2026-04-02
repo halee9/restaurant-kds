@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, Calendar, ChevronDown, ChevronRight, CornerUpLeft, Printer, Check, Info, Banknote, Inbox, Clock, Flag, FileText } from 'lucide-react';
 import type { KDSOrder, OrderStatus } from '../types';
-import { getItemDisplay, getModifierDisplay, collectLineItemIcons, mergeLineItems, formatElapsed, formatDuration, getElapsedMinutes } from '../utils';
+import { getItemDisplay, getModifierDisplay, collectLineItemIcons, mergeLineItems, formatElapsed, formatDuration, getElapsedMinutes, adaptColorForLight, formatMoney } from '../utils';
 import { useKDSStore } from '../stores/kdsStore';
 import { useSessionStore } from '../stores/sessionStore';
 import OrderTicketModal from './OrderTicketModal';
+import CashTenderDialog from './CashTenderDialog';
 
 // ── useMediaQuery hook ──────────────────────────────────────────────────────
 function useMediaQuery(query: string): boolean {
@@ -32,10 +33,10 @@ const URGENCY_BAR: Record<Urgency, string> = {
 };
 
 const URGENCY_TIME: Record<Urgency, string> = {
-  0: 'text-green-400',
-  1: 'text-yellow-400',
-  2: 'text-orange-400',
-  3: 'text-red-400',
+  0: 'text-green-700 dark:text-green-400',
+  1: 'text-yellow-700 dark:text-yellow-400',
+  2: 'text-orange-700 dark:text-orange-400',
+  3: 'text-red-700 dark:text-red-400',
 };
 
 interface Props {
@@ -47,8 +48,8 @@ interface Props {
   cancelledOrders: KDSOrder[];   // CANCELED (취소)
   onUpdateStatus: (orderId: string, status: OrderStatus) => void;
   onPrint: (order: KDSOrder) => void;
-  onConfirmCash?: (orderId: string) => void;
-  onRejectCash?: (orderId: string) => void;
+  onConfirmCash?: (orderId: string, cashTendered?: number, cashChange?: number) => Promise<void>;
+  onRejectCash?: (orderId: string) => Promise<void>;
 }
 
 // 소스 → 배지 색상 (OrderCard와 동일)
@@ -64,10 +65,10 @@ const SOURCE_VARIANT: Record<string, string> = {
 
 // 상태 → 주문번호 텍스트 색 (배경은 다크 그대로)
 function badgeClass(status: OrderStatus) {
-  if (status === 'PENDING_PAYMENT') return 'text-amber-400';
-  if (status === 'IN_PROGRESS') return 'text-yellow-400';
-  if (status === 'READY')       return 'text-green-400';
-  return 'text-red-400';
+  if (status === 'PENDING_PAYMENT') return 'text-amber-700 dark:text-amber-400';
+  if (status === 'IN_PROGRESS') return 'text-yellow-700 dark:text-yellow-400';
+  if (status === 'READY')       return 'text-green-700 dark:text-green-400';
+  return 'text-red-700 dark:text-red-400';
 }
 
 // 상태 전진
@@ -97,6 +98,7 @@ export function ActiveOrderRow({
   onPrint: Props['onPrint'];
 }) {
   const { menuDisplayConfig, urgencyYellowMin, urgencyOrangeMin, urgencyRedMin } = useKDSStore();
+  const theme = useSessionStore((s) => s.theme);
   const { menuItems, modifiers } = menuDisplayConfig;
 
   const merged = mergeLineItems(order.lineItems);
@@ -136,6 +138,7 @@ export function ActiveOrderRow({
 
   // 모든 아이템 수량 다 채워지면 → 600ms 후 auto-READY
   React.useEffect(() => {
+    if (isFinished) return; // READY/COMPLETED 주문은 auto-advance 하지 않음
     if (items.length === 0) return;
     const allDone = items.every(
       (item, idx) => (doneCounts.get(idx) ?? 0) >= Number(item.quantity)
@@ -145,10 +148,11 @@ export function ActiveOrderRow({
       onUpdateStatus(order.id, 'READY');
     }, 600);
     return () => clearTimeout(timer);
-  }, [doneCounts, items, order.id, onUpdateStatus]);
+  }, [doneCounts, items, order.id, onUpdateStatus, isFinished]);
 
   function handleItemClick(e: React.MouseEvent, idx: number, quantity: number) {
     e.stopPropagation();
+    if (isFinished) return; // READY/COMPLETED 주문은 아이템 클릭 무시
     setDoneCounts((prev) => {
       const next = new Map(prev);
       const current = next.get(idx) ?? 0;
@@ -208,14 +212,14 @@ export function ActiveOrderRow({
           const icons = collectLineItemIcons(item, menuItems, modifiers);
           return (
             <div key={idx} className={`flex gap-1.5 flex-wrap ${idx === 0 ? 'items-end' : 'items-center'}`}>
-              {icons.length > 0 && !isDone && (
-                <span className="text-6xl leading-none shrink-0">{icons.join('')}</span>
+              {icons.length > 0 && (
+                <span className={`text-6xl leading-none shrink-0 ${isDone ? 'opacity-30' : ''}`}>{icons.join('')}</span>
               )}
               <span
                 className={`px-3 py-0 rounded-md text-6xl font-black leading-none inline-flex items-center gap-1.5 transition-all select-none cursor-pointer ${isDone ? 'bg-muted text-muted-foreground' : ''}`}
                 style={isDone
                   ? undefined
-                  : { backgroundColor: display.bgColor, color: display.textColor }
+                  : (() => { const c = adaptColorForLight(display.bgColor, display.textColor, theme); return { backgroundColor: c.bg, color: c.text }; })()
                 }
                 data-done={isDone || undefined}
                 onClick={(e) => handleItemClick(e, idx, qty)}
@@ -248,7 +252,7 @@ export function ActiveOrderRow({
                           : 'border-foreground/50 text-foreground'
                     }`}
                     style={!isDone && modDisplay.bgColor
-                      ? { borderColor: modDisplay.bgColor, color: modDisplay.bgColor }
+                      ? (() => { const c = adaptColorForLight(modDisplay.bgColor, modDisplay.bgColor, theme, 'accent'); return { borderColor: c.bg, color: c.text }; })()
                       : undefined
                     }
                   >
@@ -326,7 +330,7 @@ export function ActiveOrderRow({
         >
           <Info className="h-5 w-5" />
         </button>
-        <span className="text-xl font-semibold text-blue-300 shrink-0">
+        <span className="text-xl font-semibold text-blue-800 dark:text-blue-300 shrink-0">
           {order.displayName}
         </span>
         <span className={`text-xl font-bold tabular-nums shrink-0 transition-colors ${URGENCY_TIME[urgency]}${!isFinished && urgency === 3 ? ' animate-pulse' : ''}`}>
@@ -390,9 +394,9 @@ function CompactOrderRow({
           onClick={handleAdvance}
           className={`text-lg font-bold w-10 text-center rounded-lg transition-colors py-1 ${
             order.status === 'READY'
-              ? 'text-green-500 hover:bg-green-500/20'
+              ? 'text-green-700 dark:text-green-500 hover:bg-green-500/20'
               : isPendingPayment
-                ? 'text-amber-400'
+                ? 'text-amber-700 dark:text-amber-400'
                 : 'text-foreground hover:bg-secondary'
           }`}
           title="Next status"
@@ -407,10 +411,10 @@ function CompactOrderRow({
           <span className="text-[9px] font-bold text-white bg-orange-500 px-1 py-0.5 rounded">BIG</span>
         )}
         {isPendingPayment && (
-          <span className="font-semibold text-sm text-amber-400">${((order.totalMoney ?? 0) / 100).toFixed(2)}</span>
+          <span className="font-semibold text-sm text-amber-700 dark:text-amber-400">${((order.totalMoney ?? 0) / 100).toFixed(2)}</span>
         )}
         {pickupLabel && (
-          <span className="text-xs font-bold text-purple-400 flex items-center gap-0.5">
+          <span className="text-xs font-bold text-purple-700 dark:text-purple-400 flex items-center gap-0.5">
             <Clock className="h-3 w-3" />{pickupLabel}
           </span>
         )}
@@ -456,7 +460,7 @@ function CompactOrderRow({
         })}
       </div>
       {order.note && (
-        <div className="ml-13 mt-0.5 text-xs text-yellow-400 italic truncate">★ {order.note}</div>
+        <div className="ml-13 mt-0.5 text-xs text-yellow-600 dark:text-yellow-400 italic truncate">★ {order.note}</div>
       )}
       {infoOpen && <OrderTicketModal order={order} onClose={() => setInfoOpen(false)} />}
     </div>
@@ -513,11 +517,11 @@ function ScheduledSection({ orders, onUpdateStatus, onPrint }: {
     <div className="border-t border-border shrink-0">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center gap-2 px-3 py-1.5 bg-purple-900/15 hover:bg-purple-900/25 transition-colors text-left"
+        className="w-full flex items-center gap-2 px-3 py-1.5 bg-purple-100 dark:bg-purple-900/15 hover:bg-purple-200 dark:hover:bg-purple-900/25 transition-colors text-left"
       >
-        {open ? <ChevronDown className="h-3.5 w-3.5 text-purple-400" /> : <ChevronRight className="h-3.5 w-3.5 text-purple-400" />}
-        <Calendar className="h-3 w-3 text-purple-400" />
-        <span className="text-[11px] font-bold text-purple-400 tracking-widest uppercase">Scheduled</span>
+        {open ? <ChevronDown className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" /> : <ChevronRight className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />}
+        <Calendar className="h-3 w-3 text-purple-600 dark:text-purple-400" />
+        <span className="text-[11px] font-bold text-purple-600 dark:text-purple-400 tracking-widest uppercase">Scheduled</span>
         <span className="text-[10px] font-bold text-muted-foreground/60">({orders.length})</span>
       </button>
       {open && (
@@ -532,7 +536,7 @@ function ScheduledSection({ orders, onUpdateStatus, onPrint }: {
 }
 
 // ── 메인 컴포넌트 ────────────────────────────────────────────────────────────
-export default function OrderList({ activeOrders, pendingPaymentOrders, scheduledOrders, readyOrders, completedOrders, cancelledOrders, onUpdateStatus, onPrint }: Props) {
+export default function OrderList({ activeOrders, pendingPaymentOrders, scheduledOrders, readyOrders, completedOrders, cancelledOrders, onUpdateStatus, onPrint, onConfirmCash, onRejectCash }: Props) {
   const { activeTab } = useSessionStore();
   const isWide = useMediaQuery('(min-width: 1400px)');
 
@@ -599,7 +603,7 @@ export default function OrderList({ activeOrders, pendingPaymentOrders, schedule
               <ColumnHeader title="Queue" count={pendingCashOrders.length + sortedScheduled.length + sortedReady.length} />
               <div className="flex-1 overflow-y-auto min-h-0">
                 {/* Cash 미결제 */}
-                <QueueSectionHeader title="Cash Due" count={pendingCashOrders.length} color="text-amber-400" icon={<Banknote size={16} className="text-amber-500" />} />
+                <QueueSectionHeader title="Cash Due" count={pendingCashOrders.length} color="text-amber-600 dark:text-amber-400" icon={<Banknote size={16} className="text-amber-600 dark:text-amber-500" />} />
                 {pendingCashOrders.length > 0 && (
                   <div className="p-2 space-y-0.5">
                     {pendingCashOrders.map((o) => (
@@ -609,7 +613,7 @@ export default function OrderList({ activeOrders, pendingPaymentOrders, schedule
                 )}
 
                 {/* Scheduled */}
-                <QueueSectionHeader title="Scheduled" count={sortedScheduled.length} color="text-purple-400" icon={<Calendar size={16} className="text-purple-400" />} />
+                <QueueSectionHeader title="Scheduled" count={sortedScheduled.length} color="text-purple-600 dark:text-purple-400" icon={<Calendar size={16} className="text-purple-600 dark:text-purple-400" />} />
                 {sortedScheduled.length > 0 && (
                   <div className="p-2 space-y-0.5">
                     {sortedScheduled.map((o) => (
@@ -619,7 +623,7 @@ export default function OrderList({ activeOrders, pendingPaymentOrders, schedule
                 )}
 
                 {/* Ready */}
-                <QueueSectionHeader title="Ready" count={sortedReady.length} color="text-green-400" icon={<Check size={16} className="text-green-500" />} />
+                <QueueSectionHeader title="Ready" count={sortedReady.length} color="text-green-600 dark:text-green-400" icon={<Check size={16} className="text-green-600 dark:text-green-500" />} />
                 {sortedReady.length > 0 && (
                   <div className="p-2 space-y-0.5">
                     {sortedReady.map((o) => (
@@ -686,16 +690,52 @@ export default function OrderList({ activeOrders, pendingPaymentOrders, schedule
   }
 
   // ── Ready·Done 탭 ─────────────────────────────────────────────────────────
+  const sortedCashDue = [...pendingPaymentOrders].sort((a, b) =>
+    a.createdAt.localeCompare(b.createdAt)
+  );
   const sortedReady = [...readyOrders].sort((a, b) =>
     (a.readyAt ?? a.createdAt).localeCompare(b.readyAt ?? b.createdAt)
   );
   const sortedDone = [...completedOrders].sort((a, b) =>
     (b.completedAt ?? b.createdAt).localeCompare(a.completedAt ?? a.createdAt)
   );
+  const hasCashDue = sortedCashDue.length > 0;
+  const [cashDialogOrder, setCashDialogOrder] = React.useState<KDSOrder | null>(null);
 
   return (
     <div className="flex flex-col sm:flex-row h-full min-h-0 overflow-hidden no-print">
-      {/* 왼쪽: READY */}
+      {/* Cash Due (only shown when pending payment orders exist) */}
+      {hasCashDue && (
+        <div className="w-full sm:w-64 flex flex-col min-h-0 border-b sm:border-b-0 sm:border-r border-border shrink-0">
+          <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border/60 bg-amber-100 dark:bg-amber-900/20 shrink-0">
+            <Banknote className="h-4 w-4 text-amber-700 dark:text-amber-400" />
+            <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400 tracking-widest uppercase">Cash Due</span>
+            <span className="min-w-[20px] h-5 flex items-center justify-center rounded-full bg-amber-500 text-white text-xs font-bold px-1.5">
+              {sortedCashDue.length}
+            </span>
+          </div>
+          <div className="flex-1 overflow-y-auto min-h-0">
+            {sortedCashDue.map((o) => (
+              <div
+                key={o.id}
+                className="px-3 py-2.5 border-b border-amber-200 dark:border-amber-800/30 cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+                onClick={() => setCashDialogOrder(o)}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-black text-amber-700 dark:text-amber-400">{o.displayId}</span>
+                  <span className="text-sm font-medium flex-1 truncate">{o.displayName}</span>
+                  <span className="font-bold text-amber-700 dark:text-amber-400">{formatMoney(o.totalMoney)}</span>
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5 truncate">
+                  {o.lineItems.map((item) => `${item.quantity !== '1' ? item.quantity + '× ' : ''}${item.name}`).join(', ')}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* READY */}
       <div className="flex-1 flex flex-col min-h-0 border-b sm:border-b-0 sm:border-r border-border">
         <ColumnHeader title="Ready" count={sortedReady.length} />
         <div className="flex-1 overflow-y-auto min-h-0">
@@ -708,7 +748,7 @@ export default function OrderList({ activeOrders, pendingPaymentOrders, schedule
         </div>
       </div>
 
-      {/* 오른쪽: COMPLETED */}
+      {/* COMPLETED */}
       <div className="flex-1 flex flex-col min-h-0">
         <ColumnHeader title="Done" count={sortedDone.length} />
         <div className="flex-1 overflow-y-auto min-h-0">
@@ -720,6 +760,23 @@ export default function OrderList({ activeOrders, pendingPaymentOrders, schedule
           }
         </div>
       </div>
+
+      {/* Cash Tender Dialog */}
+      {onConfirmCash && onRejectCash && (
+        <CashTenderDialog
+          order={cashDialogOrder}
+          open={!!cashDialogOrder}
+          onClose={() => setCashDialogOrder(null)}
+          onConfirm={async (orderId, cashTendered, cashChange) => {
+            await onConfirmCash(orderId, cashTendered, cashChange);
+            setCashDialogOrder(null);
+          }}
+          onReject={async (orderId) => {
+            await onRejectCash(orderId);
+            setCashDialogOrder(null);
+          }}
+        />
+      )}
     </div>
   );
 }

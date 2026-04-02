@@ -30,8 +30,8 @@ import OrdersScreen from './screens/OrdersScreen';
 import DisplayScreen from './screens/DisplayScreen';
 import HomeScreen from './screens/HomeScreen';
 import ClockScreen from './screens/ClockScreen';
-import CashManagementScreen from './screens/CashManagementScreen';
 import CounterScreen from './screens/CounterScreen';
+import CashManagementScreen from './screens/CashManagementScreen';
 import TasksScreen from './screens/TasksScreen';
 import HelpScreen from './screens/HelpScreen';
 import { playOrderNotification } from './utils/sounds';
@@ -46,7 +46,7 @@ function KitchenScreen({ onUpdateStatus, onPrint, printQueue, setPrintQueue, now
   printQueue: KDSOrder[];
   setPrintQueue: React.Dispatch<React.SetStateAction<KDSOrder[]>>;
   now: number;
-  onConfirmCash: (id: string) => Promise<void>;
+  onConfirmCash: (id: string, cashTendered?: number, cashChange?: number) => Promise<void>;
   onRejectCash: (id: string) => Promise<void>;
 }) {
   const { restaurantName, activeTab, setActiveTab, viewMode, setViewMode } = useSessionStore();

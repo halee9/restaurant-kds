@@ -67,12 +67,12 @@ function formatDuration(startIso: string, endIso: string) {
 
 function statusBadge(status: OrderStatus) {
   const map: Record<OrderStatus, { label: string; className: string }> = {
-    PENDING_PAYMENT: { label: 'Cash Due', className: 'bg-amber-600/20 text-amber-500 border-amber-600/30' },
-    OPEN:        { label: 'Open',        className: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
-    IN_PROGRESS: { label: 'In Progress', className: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
-    READY:       { label: 'Ready',       className: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
-    COMPLETED:   { label: 'Completed',   className: 'bg-gray-500/20 text-gray-400 border-gray-500/30' },
-    CANCELED:    { label: 'Canceled',    className: 'bg-red-500/20 text-red-400 border-red-500/30' },
+    PENDING_PAYMENT: { label: 'Cash Due', className: 'bg-amber-600/20 text-amber-600 dark:text-amber-500 border-amber-600/30' },
+    OPEN:        { label: 'Open',        className: 'bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/30' },
+    IN_PROGRESS: { label: 'In Progress', className: 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30' },
+    READY:       { label: 'Ready',       className: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' },
+    COMPLETED:   { label: 'Completed',   className: 'bg-gray-500/20 text-gray-600 dark:text-gray-400 border-gray-500/30' },
+    CANCELED:    { label: 'Canceled',    className: 'bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/30' },
   };
   const s = map[status] ?? map.OPEN;
   return <Badge variant="outline" className={`text-sm ${s.className}`}>{s.label}</Badge>;
@@ -454,19 +454,19 @@ export default function OrderDetailPanel({ order: orderProp, onClose, onStatusCh
           </div>
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
             <span className={`text-xs px-2 py-0.5 rounded-full ${
-              order.source === 'Kiosk' ? 'bg-purple-500/20 text-purple-400' :
-              order.source === 'Online' ? 'bg-cyan-500/20 text-cyan-400' :
+              order.source === 'Kiosk' ? 'bg-purple-500/20 text-purple-600 dark:text-purple-400' :
+              order.source === 'Online' ? 'bg-cyan-500/20 text-cyan-600 dark:text-cyan-400' :
               'bg-muted text-muted-foreground'
             }`}>
               {order.source}
             </span>
             {order.isScheduled && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400">
+              <span className="text-xs px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-600 dark:text-orange-400">
                 Scheduled
               </span>
             )}
             {order.isDelivery && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400">
+              <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-600 dark:text-blue-400">
                 Delivery
               </span>
             )}
@@ -496,11 +496,11 @@ export default function OrderDetailPanel({ order: orderProp, onClose, onStatusCh
                 </Button>
               )}
               {order.refundedAt && (
-                <Badge variant="outline" className="text-sm bg-red-500/20 text-red-400 border-red-500/30">Refunded</Badge>
+                <Badge variant="outline" className="text-sm bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/30">Refunded</Badge>
               )}
               {onDelete && (
                 <Button variant="outline" size="sm" onClick={() => setDeleteConfirmOpen(true)}
-                  className="flex items-center gap-1 border-red-500/30 text-red-400 hover:bg-red-500/10">
+                  className="flex items-center gap-1 border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-500/10">
                   <XCircle size={14} /> Delete
                 </Button>
               )}
@@ -528,7 +528,7 @@ export default function OrderDetailPanel({ order: orderProp, onClose, onStatusCh
                 </Button>
               )}
               {order.refundedAt && (
-                <Badge variant="outline" className="text-sm bg-red-500/20 text-red-400 border-red-500/30">Refunded</Badge>
+                <Badge variant="outline" className="text-sm bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/30">Refunded</Badge>
               )}
             </div>
             <Separator className="mb-4" />
@@ -575,7 +575,7 @@ export default function OrderDetailPanel({ order: orderProp, onClose, onStatusCh
               </div>
             ) : (
               <div className="text-center py-2">
-                <p className="text-emerald-400 text-sm font-medium">PIN verified</p>
+                <p className="text-emerald-600 dark:text-emerald-400 text-sm font-medium">PIN verified</p>
               </div>
             )}
 
@@ -656,7 +656,7 @@ export default function OrderDetailPanel({ order: orderProp, onClose, onStatusCh
                         </div>
                       )}
                       {item.note && (
-                        <p className="text-xs italic text-yellow-500 mt-0.5">★ {item.note}</p>
+                        <p className="text-xs italic text-yellow-600 dark:text-yellow-500 mt-0.5">★ {item.note}</p>
                       )}
                     </div>
                   </div>
@@ -722,7 +722,7 @@ export default function OrderDetailPanel({ order: orderProp, onClose, onStatusCh
 
         {/* Delivery Note (read-only) */}
         {order.deliveryNote && (
-          <p className="text-sm bg-blue-500/10 text-blue-400 p-2 rounded mb-4">
+          <p className="text-sm bg-blue-500/10 text-blue-600 dark:text-blue-400 p-2 rounded mb-4">
             Delivery: {order.deliveryNote}
           </p>
         )}
@@ -762,7 +762,7 @@ export default function OrderDetailPanel({ order: orderProp, onClose, onStatusCh
                     </p>
                     {/* Duration to next step */}
                     {isActive && !isLast && timeline[i + 1]?.time && (
-                      <p className="text-xs text-amber-400 mt-0.5">
+                      <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
                         {formatDuration(step.time!, timeline[i + 1].time!)}
                       </p>
                     )}

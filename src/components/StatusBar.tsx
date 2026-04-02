@@ -33,7 +33,7 @@ export default function StatusBar({
       {/* 연결 상태 */}
       <div className="flex items-center gap-2 min-w-24 flex-shrink-0">
         <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${connected ? 'bg-green-500' : 'bg-red-500 animate-pulse'}`} />
-        <span className={`text-sm font-semibold truncate ${connected ? 'text-green-400' : 'text-red-400'}`}>
+        <span className={`text-sm font-semibold truncate ${connected ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
           {connected ? (restaurantName || 'Live') : 'Offline'}
         </span>
       </div>
@@ -53,7 +53,7 @@ export default function StatusBar({
           <span className="hidden sm:inline">Scheduled</span>
           <span className="sm:hidden">Sched</span>
           {counts.scheduled > 0 && (
-            <Badge variant="outline" className="h-5 px-1.5 text-xs border-purple-500 text-purple-400">
+            <Badge variant="outline" className="h-5 px-1.5 text-xs border-purple-500 text-purple-700 dark:text-purple-400">
               {counts.scheduled}
             </Badge>
           )}
@@ -62,7 +62,7 @@ export default function StatusBar({
         <button onClick={() => onTabChange('ready-done')} className={tabCls('ready-done')}>
           Ready·Done
           {counts.readyDone > 0 && (
-            <Badge variant="outline" className="h-5 px-1.5 text-xs border-emerald-500 text-emerald-400 animate-pulse">
+            <Badge variant="outline" className="h-5 px-1.5 text-xs border-emerald-500 text-emerald-700 dark:text-emerald-400 animate-pulse">
               {counts.readyDone}
             </Badge>
           )}
@@ -71,7 +71,7 @@ export default function StatusBar({
         <button onClick={() => onTabChange('cancelled')} className={tabCls('cancelled')}>
           Cancelled
           {counts.cancelled > 0 && (
-            <Badge variant="outline" className="h-5 px-1.5 text-xs border-red-500 text-red-400">
+            <Badge variant="outline" className="h-5 px-1.5 text-xs border-red-500 text-red-700 dark:text-red-400">
               {counts.cancelled}
             </Badge>
           )}

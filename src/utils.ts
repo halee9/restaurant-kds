@@ -52,6 +52,69 @@ export function detectSource(squareSourceName?: string): OrderSource {
   return 'Unknown';
 }
 
+// ─── Theme-aware Color Adaptation ────────────────────────────────────────────
+
+/** Parse hex (#RGB or #RRGGBB) to [r, g, b] 0-255 */
+function hexToRgb(hex: string): [number, number, number] {
+  const h = hex.replace('#', '');
+  if (h.length === 3) {
+    return [parseInt(h[0] + h[0], 16), parseInt(h[1] + h[1], 16), parseInt(h[2] + h[2], 16)];
+  }
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
+  return '#' + [clamp(r), clamp(g), clamp(b)].map((c) => c.toString(16).padStart(2, '0')).join('').toUpperCase();
+}
+
+/** Relative luminance (0 = black, 1 = white) */
+function luminance([r, g, b]: [number, number, number]): number {
+  const [rs, gs, bs] = [r, g, b].map((c) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+}
+
+/**
+ * Adapt admin-set item/modifier colors for the current theme.
+ * - dark mode: return as-is (colors were set for dark backgrounds)
+ * - light mode 'fill': lighten dark bg, darken light text (for item pills)
+ * - light mode 'accent': keep color saturated for border/text on transparent bg (modifiers)
+ */
+export function adaptColorForLight(
+  bgColor: string,
+  textColor: string,
+  theme: 'light' | 'dark',
+  role: 'fill' | 'accent' = 'fill'
+): { bg: string; text: string } {
+  if (theme === 'dark') return { bg: bgColor, text: textColor };
+
+  const bgRgb = hexToRgb(bgColor);
+  const bgLum = luminance(bgRgb);
+
+  // Accent mode: modifier border+text on transparent bg
+  // Keep colors saturated so they stay distinguishable; only darken if too light for white bg
+  if (role === 'accent') {
+    let color = bgColor;
+    if (bgLum > 0.4) {
+      // Too light for white background → darken to 60%
+      const [r, g, b] = bgRgb;
+      color = rgbToHex(r * 0.6, g * 0.6, b * 0.6);
+    }
+    return { bg: color, text: color };
+  }
+
+  // Fill mode: item pill — keep original bg, auto-pick text for max contrast
+  // In light mode, the page bg is white, so vivid/dark item backgrounds pop.
+  // Use white text on dark bg, dark text on light bg (based on bg luminance).
+  const newBg = bgColor;
+  const newText = bgLum > 0.45 ? '#1A1A1A' : '#FFFFFF';
+
+  return { bg: newBg, text: newText };
+}
+
 // ─── Menu Display 유틸 ───────────────────────────────────────────────────────
 
 /** 메뉴 항목: 약어 + 배경색/글씨색 + POS 표시 여부 + 서버 경고 반환 */

@@ -53,12 +53,12 @@ const LIMIT = 200;
 
 function statusBadge(status: OrderStatus) {
   const map: Record<OrderStatus, { label: string; className: string }> = {
-    PENDING_PAYMENT: { label: 'Cash Due', className: 'bg-amber-600/20 text-amber-500 border-amber-600/30' },
-    OPEN:        { label: 'Open',        className: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
-    IN_PROGRESS: { label: 'In Progress', className: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
-    READY:       { label: 'Ready',       className: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
-    COMPLETED:   { label: 'Completed',   className: 'bg-gray-500/20 text-gray-400 border-gray-500/30' },
-    CANCELED:    { label: 'Canceled',    className: 'bg-red-500/20 text-red-400 border-red-500/30' },
+    PENDING_PAYMENT: { label: 'Cash Due', className: 'bg-amber-600/20 text-amber-600 dark:text-amber-500 border-amber-600/30' },
+    OPEN:        { label: 'Open',        className: 'bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/30' },
+    IN_PROGRESS: { label: 'In Progress', className: 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30' },
+    READY:       { label: 'Ready',       className: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' },
+    COMPLETED:   { label: 'Completed',   className: 'bg-gray-500/20 text-gray-600 dark:text-gray-400 border-gray-500/30' },
+    CANCELED:    { label: 'Canceled',    className: 'bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/30' },
   };
   const s = map[status] ?? map.OPEN;
   return <Badge variant="outline" className={s.className}>{s.label}</Badge>;
@@ -66,12 +66,12 @@ function statusBadge(status: OrderStatus) {
 
 function sourceBadge(source: OrderSource) {
   const colors: Record<string, string> = {
-    Kiosk:           'bg-purple-500/20 text-purple-400',
-    Online:          'bg-cyan-500/20 text-cyan-400',
-    DoorDash:        'bg-red-500/20 text-red-400',
-    'Uber Eats':     'bg-green-500/20 text-green-400',
-    Grubhub:         'bg-orange-500/20 text-orange-400',
-    'Square Online': 'bg-indigo-500/20 text-indigo-400',
+    Kiosk:           'bg-purple-500/20 text-purple-600 dark:text-purple-400',
+    Online:          'bg-cyan-500/20 text-cyan-600 dark:text-cyan-400',
+    DoorDash:        'bg-red-500/20 text-red-600 dark:text-red-400',
+    'Uber Eats':     'bg-green-500/20 text-green-600 dark:text-green-400',
+    Grubhub:         'bg-orange-500/20 text-orange-600 dark:text-orange-400',
+    'Square Online': 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400',
   };
   return (
     <span className={`text-xs px-2 py-0.5 rounded-full ${colors[source] ?? 'bg-muted text-muted-foreground'}`}>
@@ -83,9 +83,9 @@ function sourceBadge(source: OrderSource) {
 function paymentBadge(source?: string) {
   if (!source) return <span className="text-xs text-muted-foreground">—</span>;
   const map: Record<string, { label: string; className: string }> = {
-    stripe:   { label: 'Stripe',   className: 'bg-violet-500/20 text-violet-400' },
-    square:   { label: 'Square',   className: 'bg-blue-500/20 text-blue-400' },
-    cash:     { label: 'Cash',     className: 'bg-amber-500/20 text-amber-400' },
+    stripe:   { label: 'Stripe',   className: 'bg-violet-500/20 text-violet-600 dark:text-violet-400' },
+    square:   { label: 'Square',   className: 'bg-blue-500/20 text-blue-600 dark:text-blue-400' },
+    cash:     { label: 'Cash',     className: 'bg-amber-500/20 text-amber-600 dark:text-amber-400' },
     external: { label: 'External', className: 'bg-muted text-muted-foreground' },
   };
   const s = map[source] ?? { label: source, className: 'bg-muted text-muted-foreground' };
@@ -212,7 +212,7 @@ export default function OrdersScreen({ restaurantCode: propCode, allowDelete }: 
               variant="outline"
               size="sm"
               onClick={() => setShowFilters(!showFilters)}
-              className={hasActiveFilters ? 'border-amber-500/50 text-amber-400' : ''}
+              className={hasActiveFilters ? 'border-amber-500/50 text-amber-600 dark:text-amber-400' : ''}
             >
               <Filter size={14} />
               <span className="hidden sm:inline ml-1">Filters</span>
@@ -385,7 +385,7 @@ export default function OrdersScreen({ restaurantCode: propCode, allowDelete }: 
                     </div>
                     <div className="flex items-center gap-1">
                       {statusBadge(order.status)}
-                      {order.refundedAt && <Badge variant="outline" className="bg-red-500/20 text-red-400 border-red-500/30 text-xs">Refunded</Badge>}
+                      {order.refundedAt && <Badge variant="outline" className="bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/30 text-xs">Refunded</Badge>}
                       {order.duplicateOf && <Badge className="bg-red-600 text-white text-xs flex items-center gap-0.5"><AlertTriangle className="h-3 w-3" /> Dup #{order.duplicateOf}</Badge>}
                     </div>
                   </div>
@@ -451,7 +451,7 @@ export default function OrdersScreen({ restaurantCode: propCode, allowDelete }: 
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
                         {statusBadge(order.status)}
-                        {order.refundedAt && <Badge variant="outline" className="bg-red-500/20 text-red-400 border-red-500/30 text-xs">Refunded</Badge>}
+                        {order.refundedAt && <Badge variant="outline" className="bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/30 text-xs">Refunded</Badge>}
                         {order.duplicateOf && <Badge className="bg-red-600 text-white text-xs flex items-center gap-0.5"><AlertTriangle className="h-3 w-3" /> Dup #{order.duplicateOf}</Badge>}
                       </div>
                     </td>
