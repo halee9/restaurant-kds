@@ -539,6 +539,7 @@ function ScheduledSection({ orders, onUpdateStatus, onPrint }: {
 export default function OrderList({ activeOrders, pendingPaymentOrders, scheduledOrders, readyOrders, completedOrders, cancelledOrders, onUpdateStatus, onPrint, onConfirmCash, onRejectCash }: Props) {
   const { activeTab } = useSessionStore();
   const isWide = useMediaQuery('(min-width: 1400px)');
+  const [cashDialogOrder, setCashDialogOrder] = React.useState<KDSOrder | null>(null);
 
   // ── Active 탭 ─────────────────────────────────────────────────────────────
   if (activeTab === 'active') {
@@ -700,7 +701,6 @@ export default function OrderList({ activeOrders, pendingPaymentOrders, schedule
     (b.completedAt ?? b.createdAt).localeCompare(a.completedAt ?? a.createdAt)
   );
   const hasCashDue = sortedCashDue.length > 0;
-  const [cashDialogOrder, setCashDialogOrder] = React.useState<KDSOrder | null>(null);
 
   return (
     <div className="flex flex-col sm:flex-row h-full min-h-0 overflow-hidden no-print">
