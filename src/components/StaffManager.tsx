@@ -157,6 +157,9 @@ export default function StaffManager({ restaurantCode, restaurantName, pin, payP
   const [periodTips, setPeriodTips] = useState(0); // cents
   const [payrollNotes, setPayrollNotes] = useState<Record<string, string>>({}); // staffId → note
   const [finalizedMap, setFinalizedMap] = useState<Record<string, string>>({}); // staffId → finalized_at
+  const [payrollSnapshot, setPayrollSnapshot] = useState<Record<string, {
+    total_hours: number; base_pay: number; tip_share: number; top_up: number; gross_pay: number;
+  }>>({}); // staffId → finalized amounts
 
   // ── Edit time entry dialog ─────────────────────────────────────────────────
   const [editEntryOpen, setEditEntryOpen] = useState(false);
@@ -249,12 +252,25 @@ export default function StaffManager({ restaurantCode, restaurantName, pin, payP
         const notesData = await notesRes.json();
         const noteMap: Record<string, string> = {};
         const finMap: Record<string, string> = {};
+        const snapMap: Record<string, { total_hours: number; base_pay: number; tip_share: number; top_up: number; gross_pay: number }> = {};
         for (const n of notesData.notes) {
           noteMap[n.staff_id] = n.note;
-          if (n.finalized_at) finMap[n.staff_id] = n.finalized_at;
+          if (n.finalized_at) {
+            finMap[n.staff_id] = n.finalized_at;
+            if (n.gross_pay != null) {
+              snapMap[n.staff_id] = {
+                total_hours: n.total_hours ?? 0,
+                base_pay: n.base_pay ?? 0,
+                tip_share: n.tip_share ?? 0,
+                top_up: n.top_up ?? 0,
+                gross_pay: n.gross_pay ?? 0,
+              };
+            }
+          }
         }
         setPayrollNotes(noteMap);
         setFinalizedMap(finMap);
+        setPayrollSnapshot(snapMap);
       }
     } catch {
       setError('Failed to load time entries');
@@ -707,15 +723,18 @@ export default function StaffManager({ restaurantCode, restaurantName, pin, payP
             <>
               {Object.entries(entriesByStaff).map(([staffId, { name, wage, tipPercent, minWage, entries: staffEntries }]) => {
                 const totalWorked = staffEntries.reduce((sum, e) => sum + calcWorkedHours(e.clock_in, e.clock_out), 0);
-                const totalPayHours = staffEntries.reduce((sum, e) => {
+                const snap = payrollSnapshot[staffId];
+                // Finalized → use saved snapshot; otherwise calculate live
+                const totalPayHours = snap?.total_hours ?? staffEntries.reduce((sum, e) => {
                   if (e.pay_hours != null) return sum + e.pay_hours;
                   return sum + roundToHalf(calcWorkedHours(e.clock_in, e.clock_out));
                 }, 0);
-                const basePay = Math.round(totalPayHours * wage);
-                const tipShare = tipShareMap[staffId] ?? 0;
+                const basePay = snap?.base_pay ?? Math.round(totalPayHours * wage);
+                const tipShare = snap?.tip_share ?? (tipShareMap[staffId] ?? 0);
+                const topUp = snap?.top_up ?? 0;
                 const minPay = minWage > 0 ? Math.round(totalPayHours * minWage) : 0;
-                const isMinApplied = minWage > 0 && minPay > basePay + tipShare;
-                const grossPay = isMinApplied ? minPay : basePay + tipShare;
+                const isMinApplied = snap ? topUp > 0 : (minWage > 0 && minPay > basePay + tipShare);
+                const grossPay = snap?.gross_pay ?? (isMinApplied ? minPay : basePay + tipShare);
 
                 return (
                   <Card key={staffId}>
@@ -902,8 +921,18 @@ export default function StaffManager({ restaurantCode, restaurantName, pin, payP
                           size="sm"
                           className="text-xs"
                           onClick={() => {
-                            const topUp = isMinApplied ? minPay - basePay - tipShare : 0;
-                            handleFinalize(staffId, totalPayHours, basePay, tipShare, topUp, grossPay);
+                            // Always finalize with current live calculations
+                            const livePayHours = staffEntries.reduce((sum, e) => {
+                              if (e.pay_hours != null) return sum + e.pay_hours;
+                              return sum + roundToHalf(calcWorkedHours(e.clock_in, e.clock_out));
+                            }, 0);
+                            const liveBase = Math.round(livePayHours * wage);
+                            const liveTip = tipShareMap[staffId] ?? 0;
+                            const liveMin = minWage > 0 ? Math.round(livePayHours * minWage) : 0;
+                            const liveMinApplied = minWage > 0 && liveMin > liveBase + liveTip;
+                            const liveTopUp = liveMinApplied ? liveMin - liveBase - liveTip : 0;
+                            const liveGross = liveMinApplied ? liveMin : liveBase + liveTip;
+                            handleFinalize(staffId, livePayHours, liveBase, liveTip, liveTopUp, liveGross);
                           }}
                         >
                           {finalizedMap[staffId] ? 'Re-finalize' : 'Finalize'}
@@ -945,15 +974,17 @@ export default function StaffManager({ restaurantCode, restaurantName, pin, payP
             {Object.entries(entriesByStaff)
               .filter(([staffId]) => !printStaffId || staffId === printStaffId)
               .map(([staffId, { name, wage, minWage, entries: staffEntries }]) => {
-              const totalPayHours = staffEntries.reduce((sum, e) => {
+              const snap = payrollSnapshot[staffId];
+              const totalPayHours = snap?.total_hours ?? staffEntries.reduce((sum, e) => {
                 if (e.pay_hours != null) return sum + e.pay_hours;
                 return sum + roundToHalf(calcWorkedHours(e.clock_in, e.clock_out));
               }, 0);
-              const basePay = Math.round(totalPayHours * wage);
-              const tipShare = tipShareMap[staffId] ?? 0;
+              const basePay = snap?.base_pay ?? Math.round(totalPayHours * wage);
+              const tipShare = snap?.tip_share ?? (tipShareMap[staffId] ?? 0);
+              const topUp = snap?.top_up ?? 0;
               const minPay = minWage > 0 ? Math.round(totalPayHours * minWage) : 0;
-              const isMinApplied = minWage > 0 && minPay > basePay + tipShare;
-              const grossPay = isMinApplied ? minPay : basePay + tipShare;
+              const isMinApplied = snap ? topUp > 0 : (minWage > 0 && minPay > basePay + tipShare);
+              const grossPay = snap?.gross_pay ?? (isMinApplied ? minPay : basePay + tipShare);
 
               return (
                 <div key={staffId} className="mb-8 break-after-page">
