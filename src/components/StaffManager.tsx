@@ -525,19 +525,15 @@ export default function StaffManager({ restaurantCode, restaurantName, pin, payP
     return acc;
   }, {});
 
-  // Tip distribution: weighted by (payHours × tipPercent)
-  const staffTipData = Object.entries(entriesByStaff).map(([staffId, { tipPercent, entries: staffEntries }]) => {
+  // Tip distribution: fixed percentage of total tips (0 if no hours worked)
+  const tipShareMap: Record<string, number> = {};
+  for (const [staffId, { tipPercent, entries: staffEntries }] of Object.entries(entriesByStaff)) {
     const totalPayHours = staffEntries.reduce((sum, e) => {
       if (e.pay_hours != null) return sum + e.pay_hours;
       return sum + roundToHalf(calcWorkedHours(e.clock_in, e.clock_out));
     }, 0);
-    return { staffId, tipPercent, totalPayHours, weighted: totalPayHours * tipPercent };
-  });
-  const totalWeighted = staffTipData.reduce((sum, d) => sum + d.weighted, 0);
-  const tipShareMap: Record<string, number> = {};
-  for (const d of staffTipData) {
-    tipShareMap[d.staffId] = totalWeighted > 0 && d.tipPercent > 0
-      ? Math.round((d.weighted / totalWeighted) * periodTips)
+    tipShareMap[staffId] = tipPercent > 0 && totalPayHours > 0
+      ? Math.round(periodTips * tipPercent / 100)
       : 0;
   }
 
@@ -673,13 +669,35 @@ export default function StaffManager({ restaurantCode, restaurantName, pin, payP
             </div>
           )}
 
-          {/* Period total tips */}
-          {!entriesLoading && periodTips > 0 && (
-            <div className="flex items-center justify-center gap-2 py-2 px-4 bg-amber-500/10 border border-amber-500/20 rounded-lg no-print">
-              <span className="text-sm font-semibold text-amber-500">Period Tips</span>
-              <span className="text-lg font-bold text-amber-400">{formatMoney(periodTips)}</span>
-            </div>
-          )}
+          {/* Period total tips + allocation summary */}
+          {!entriesLoading && periodTips > 0 && (() => {
+            const totalAllocated = Object.values(tipShareMap).reduce((s, v) => s + v, 0);
+            const reserved = periodTips - totalAllocated;
+            const allocatedPct = Object.values(entriesByStaff).reduce((s, { tipPercent, entries: se }) => {
+              const hrs = se.reduce((h, e) => h + (e.pay_hours ?? roundToHalf(calcWorkedHours(e.clock_in, e.clock_out))), 0);
+              return s + (hrs > 0 ? tipPercent : 0);
+            }, 0);
+            return (
+              <div className="flex items-center justify-center gap-4 py-2 px-4 bg-amber-500/10 border border-amber-500/20 rounded-lg no-print">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-amber-500">Period Tips</span>
+                  <span className="text-lg font-bold text-amber-400">{formatMoney(periodTips)}</span>
+                </div>
+                {reserved > 0 && (
+                  <>
+                    <span className="text-muted-foreground">·</span>
+                    <span className="text-sm text-muted-foreground">
+                      Allocated {formatMoney(totalAllocated)} ({allocatedPct}%)
+                    </span>
+                    <span className="text-muted-foreground">·</span>
+                    <span className="text-sm text-emerald-400 font-medium">
+                      Reserved {formatMoney(reserved)} ({100 - allocatedPct}%)
+                    </span>
+                  </>
+                )}
+              </div>
+            );
+          })()}
 
           {entriesLoading ? (
             <p className="text-muted-foreground text-sm animate-pulse">Loading...</p>
