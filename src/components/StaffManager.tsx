@@ -1008,6 +1008,12 @@ export default function StaffManager({ restaurantCode, restaurantName, pin, payP
                           <td className="py-0.5 text-right">{formatMoney(basePay + tipShare)}</td>
                         </tr>
                       )}
+                      {minWage > 0 && (
+                        <tr>
+                          <td colSpan={3} className="py-0.5">Min Wage ({totalPayHours.toFixed(2)}h × {formatMoney(minWage)})</td>
+                          <td className="py-0.5 text-right">{formatMoney(minPay)}</td>
+                        </tr>
+                      )}
                       {isMinApplied && (
                         <tr>
                           <td colSpan={3} className="py-0.5">Min Wage Top-up</td>
