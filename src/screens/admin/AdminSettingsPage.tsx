@@ -34,6 +34,10 @@ export default function AdminSettingsPage() {
   const [confirmPin, setConfirmPin] = useState('');
   const [managerPin, setManagerPin] = useState(config.manager_pin ?? '');
   const [staffPin, setStaffPin] = useState(config.staff_pin ?? '');
+  const [enableLoyalty, setEnableLoyalty] = useState(config.enable_loyalty ?? false);
+  const [loyaltyEarnRate, setLoyaltyEarnRate] = useState(String(((config.loyalty_earn_rate ?? 0.05) * 100).toFixed(0)));
+  const [loyaltyMinRedeem, setLoyaltyMinRedeem] = useState(String(((config.loyalty_min_redeem ?? 500) / 100).toFixed(2)));
+  const [loyaltyChannels, setLoyaltyChannels] = useState(config.loyalty_channels ?? 'both');
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
@@ -77,6 +81,10 @@ export default function AdminSettingsPage() {
           manager_pin: managerPin.trim() || null,
           staff_pin: staffPin.trim() || null,
           logo_style: logoStyle,
+          enable_loyalty: enableLoyalty,
+          loyalty_earn_rate: parseFloat(loyaltyEarnRate) / 100,
+          loyalty_min_redeem: Math.round(parseFloat(loyaltyMinRedeem) * 100),
+          loyalty_channels: loyaltyChannels,
         }),
       });
 
@@ -201,6 +209,58 @@ export default function AdminSettingsPage() {
                   <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${enableCoinCounting ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
               </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Loyalty Program */}
+        <Card>
+          <CardHeader><CardTitle className="text-sm uppercase tracking-wider">Loyalty Program</CardTitle></CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <div className="flex items-center justify-between py-1">
+              <div>
+                <p className="text-sm font-medium">Enable Loyalty Points</p>
+                <p className="text-xs text-muted-foreground">Customers earn & redeem points on orders</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEnableLoyalty(v => !v)}
+                className={`relative w-11 h-6 rounded-full transition-colors ${enableLoyalty ? 'bg-primary' : 'bg-muted'}`}
+              >
+                <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${enableLoyalty ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+
+            {enableLoyalty && (
+              <>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="earnRate">Earn Rate (%)</Label>
+                  <Input id="earnRate" type="number" value={loyaltyEarnRate} onChange={e => setLoyaltyEarnRate(e.target.value)} min="1" max="50" step="1" className="h-11" />
+                  <p className="text-xs text-muted-foreground">Customers earn this % of order total as points</p>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="minRedeem">Minimum Redemption ($)</Label>
+                  <Input id="minRedeem" type="number" value={loyaltyMinRedeem} onChange={e => setLoyaltyMinRedeem(e.target.value)} min="0" step="0.50" className="h-11" />
+                  <p className="text-xs text-muted-foreground">Minimum points value to redeem (in dollars)</p>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label>Applies To</Label>
+                  <div className="flex gap-2">
+                    {(['both', 'online', 'kiosk'] as const).map(ch => (
+                      <button
+                        key={ch}
+                        type="button"
+                        onClick={() => setLoyaltyChannels(ch)}
+                        className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                          loyaltyChannels === ch ? 'border-primary bg-primary text-primary-foreground' : 'border-border'
+                        }`}
+                      >
+                        {ch === 'both' ? 'Both' : ch === 'online' ? 'Online Only' : 'Kiosk Only'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>

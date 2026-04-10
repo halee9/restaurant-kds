@@ -39,6 +39,11 @@ export interface RestaurantConfig {
     google_maps?: string;
   } | null;
   force_closed?: boolean;
+  // ── Loyalty ──
+  enable_loyalty?: boolean;
+  loyalty_earn_rate?: number;
+  loyalty_min_redeem?: number;
+  loyalty_channels?: 'online' | 'kiosk' | 'both';
 }
 
 // ─── Order Types ─────────────────────────────────────────────────────────────
@@ -126,6 +131,8 @@ export interface KDSOrder {
   refundedAt?: string;     // 환불된 시각
   flag?: string[] | null;
   photos?: { url: string; uploaded_at: string }[];
+  loyaltyDiscount?: number;  // 포인트 할인 (cents)
+  loyaltyPhone?: string;     // 포인트 적립/사용 전화번호
   startedAt?: string;    // IN_PROGRESS로 처음 전환된 시각
   readyAt?: string;      // READY로 처음 전환된 시각
   completedAt?: string;  // COMPLETED로 처음 전환된 시각

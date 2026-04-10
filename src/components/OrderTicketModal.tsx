@@ -104,6 +104,12 @@ export function TicketContent({ order, menuItems, modifiers: modifierList }: {
             <span>{formatMoney((order.tax ?? order.taxAmount)!)}</span>
           </div>
         )}
+        {order.loyaltyDiscount != null && order.loyaltyDiscount > 0 && (
+          <div className="flex justify-between text-green-600">
+            <span>Points Discount</span>
+            <span>-{formatMoney(order.loyaltyDiscount)}</span>
+          </div>
+        )}
         {order.tipAmount != null && order.tipAmount > 0 && (
           <div className="flex justify-between">
             <span>Tip</span>
