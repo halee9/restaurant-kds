@@ -17,6 +17,11 @@ const DEFAULT_URGENCY_YELLOW = 5;
 const DEFAULT_URGENCY_ORANGE = 10;
 const DEFAULT_URGENCY_RED    = 15;
 
+// Ready 탭 정렬 순서 (oldest first 'asc' / newest first 'desc')
+const READY_SORT_ORDER_KEY = 'kds_ready_sort_order';
+type SortOrder = 'asc' | 'desc';
+const DEFAULT_READY_SORT_ORDER: SortOrder = 'asc';
+
 interface KDSState {
   // 상태
   orders: KDSOrder[];
@@ -38,6 +43,9 @@ interface KDSState {
   urgencyOrangeMin: number;
   urgencyRedMin: number;
 
+  // Ready 탭 정렬 순서
+  readySortOrder: SortOrder;
+
   // 주문 액션
   setOrders: (orders: KDSOrder[]) => void;
   addOrder: (order: KDSOrder) => void;
@@ -57,6 +65,7 @@ interface KDSState {
   setUrgencyYellowMin: (v: number) => void;
   setUrgencyOrangeMin: (v: number) => void;
   setUrgencyRedMin: (v: number) => void;
+  setReadySortOrder: (v: SortOrder) => void;
 
   // 파생 상태
   orderCounts: () => { pendingPayment: number; active: number; scheduled: number; readyDone: number; cancelled: number };
@@ -75,6 +84,7 @@ export const useKDSStore = create<KDSState>()((set, get) => ({
   urgencyYellowMin: parseInt(localStorage.getItem(URGENCY_YELLOW_KEY) ?? String(DEFAULT_URGENCY_YELLOW)),
   urgencyOrangeMin: parseInt(localStorage.getItem(URGENCY_ORANGE_KEY) ?? String(DEFAULT_URGENCY_ORANGE)),
   urgencyRedMin:    parseInt(localStorage.getItem(URGENCY_RED_KEY)    ?? String(DEFAULT_URGENCY_RED)),
+  readySortOrder: (localStorage.getItem(READY_SORT_ORDER_KEY) as SortOrder) || DEFAULT_READY_SORT_ORDER,
 
   setOrders: (orders) => set({ orders }),
 
@@ -155,6 +165,11 @@ export const useKDSStore = create<KDSState>()((set, get) => ({
   setUrgencyRedMin: (v) => {
     localStorage.setItem(URGENCY_RED_KEY, String(v));
     set({ urgencyRedMin: v });
+  },
+
+  setReadySortOrder: (v) => {
+    localStorage.setItem(READY_SORT_ORDER_KEY, v);
+    set({ readySortOrder: v });
   },
 
   orderCounts: () => {

@@ -1,4 +1,5 @@
 import type { KDSOrder } from '../types';
+import { useKDSStore } from '../stores/kdsStore';
 import OrderCard from './OrderCard';
 
 interface Props {
@@ -8,9 +9,11 @@ interface Props {
 }
 
 export default function ReadyTabView({ orders, onUpdateStatus, onPrint }: Props) {
-  const sorted = [...orders].sort((a, b) =>
-    (a.readyAt ?? a.updatedAt).localeCompare(b.readyAt ?? b.updatedAt)
-  );
+  const readySortOrder = useKDSStore((s) => s.readySortOrder);
+  const sorted = [...orders].sort((a, b) => {
+    const cmp = (a.readyAt ?? a.updatedAt).localeCompare(b.readyAt ?? b.updatedAt);
+    return readySortOrder === 'asc' ? cmp : -cmp;
+  });
 
   if (sorted.length === 0) {
     return (

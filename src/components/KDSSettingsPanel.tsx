@@ -50,6 +50,7 @@ export default function KDSSettingsPanel({ open, onClose }: Props) {
     urgencyYellowMin, setUrgencyYellowMin,
     urgencyOrangeMin, setUrgencyOrangeMin,
     urgencyRedMin,    setUrgencyRedMin,
+    readySortOrder, setReadySortOrder,
   } = useKDSStore();
 
   const { restaurantCode, pin, theme, setTheme } = useSessionStore();
@@ -160,6 +161,23 @@ export default function KDSSettingsPanel({ open, onClose }: Props) {
               <p className="text-xs text-muted-foreground mt-0.5">Move new orders to IN PROGRESS immediately</p>
             </div>
             <Toggle checked={autoStartOrders} onChange={() => setAutoStartOrders(!autoStartOrders)} />
+          </div>
+
+          <div className="h-px bg-border/60" />
+
+          {/* Ready tab sort order */}
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold">Ready List Order</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {readySortOrder === 'asc' ? 'Oldest ready first' : 'Newest ready first'}
+              </p>
+            </div>
+            <Toggle
+              checked={readySortOrder === 'desc'}
+              onChange={() => setReadySortOrder(readySortOrder === 'asc' ? 'desc' : 'asc')}
+              aria-label="Ready list order"
+            />
           </div>
 
           <div className="h-px bg-border/60" />
