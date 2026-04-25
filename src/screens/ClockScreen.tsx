@@ -382,11 +382,14 @@ export default function ClockScreen() {
 
   // ── PIN 입력 화면 ─────────────────────────────────────────────────────────
   return (
-    <div className="h-full flex items-center justify-center p-4">
-      <Card className="w-full max-w-xs">
+    <div className="h-full flex items-center justify-center p-4 bg-emerald-50 dark:bg-emerald-950/40">
+      <Card className="w-full max-w-xs border-emerald-200 dark:border-emerald-900">
         <CardHeader className="text-center pb-2">
-          <CardTitle className="text-lg">{restaurantName}</CardTitle>
-          <CardDescription>Enter your PIN to clock in/out</CardDescription>
+          <div className="mx-auto mb-1 w-10 h-10 rounded-full bg-emerald-500/15 flex items-center justify-center">
+            <Clock size={20} className="text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <CardTitle className="text-lg">Clock In / Out</CardTitle>
+          <CardDescription>{restaurantName}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-center gap-5">
           {/* PIN dots */}

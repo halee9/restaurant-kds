@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, ChefHat, ShoppingBag, Clock, ClipboardCheck, ClipboardList, Banknote, Receipt, Monitor, Settings, LogOut, Sun, Moon, HelpCircle } from 'lucide-react';
+import { Home, ChefHat, Clock, ClipboardCheck, ClipboardList, Banknote, Receipt, Monitor, Settings, LogOut, Sun, Moon, HelpCircle } from 'lucide-react';
 import { useSessionStore } from '../stores/sessionStore';
 import { useKDSStore } from '../stores/kdsStore';
 import { getVisibleNavPaths, getVisibleBottomItems } from '../utils/roles';
@@ -33,7 +33,6 @@ export default function Sidebar() {
   const allNavItems: NavItem[] = [
     { icon: <Home size={22} />, label: 'Home', path: '/' },
     { icon: <ChefHat size={22} />, label: 'Kitchen', path: '/kds', badge: counts.active + counts.pendingPayment },
-    { icon: <ShoppingBag size={22} />, label: 'Counter', path: '/counter', badge: counts.pendingPayment },
     { icon: <ClipboardList size={22} />, label: 'Orders', path: '/orders' },
     { icon: <Banknote size={22} />, label: 'Cash', path: '/cash', badge: counts.pendingPayment },
     { icon: <Receipt size={22} />, label: 'Receipts', path: '/receipts', action: 'window' },

@@ -31,7 +31,6 @@ import OrdersScreen from './screens/OrdersScreen';
 import DisplayScreen from './screens/DisplayScreen';
 import HomeScreen from './screens/HomeScreen';
 import ClockScreen from './screens/ClockScreen';
-import CounterScreen from './screens/CounterScreen';
 import CashManagementScreen from './screens/CashManagementScreen';
 import TasksScreen from './screens/TasksScreen';
 import HelpScreen from './screens/HelpScreen';
@@ -420,15 +419,6 @@ function AppShell() {
               printQueue={printQueue}
               setPrintQueue={setPrintQueue}
               now={now}
-              onConfirmCash={handleConfirmCash}
-              onRejectCash={handleRejectCash}
-            />
-          </RoleGuard>
-        } />
-        <Route path="/counter" element={
-          <RoleGuard path="/counter">
-            <CounterScreen
-              onUpdateStatus={handleUpdateStatus}
               onConfirmCash={handleConfirmCash}
               onRejectCash={handleRejectCash}
             />
